@@ -21,4 +21,5 @@ To setup,
 ```{.}
 $ git clone https://github.com/s-kybound/dplatform.git
 $ cd dplatform
+$ pip install -r requirements.txt
 ```
