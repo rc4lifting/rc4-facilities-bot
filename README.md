@@ -23,3 +23,10 @@ $ git clone https://github.com/s-kybound/dplatform.git
 $ cd dplatform
 $ pip install -r requirements.txt
 ```
+
+It is recommended to use Python virtual environments via the `venv` command so as to prevent conflicts of Dplatform's dependencies with other Python applications on the computer. To do so, before executing `pip install -r requirements.txt`,
+
+```{.}
+$ python -m venv /path/to/new/virtual/environment
+$ source /path/to/new/virtual/environment
+```
