@@ -28,5 +28,5 @@ It is recommended to use Python virtual environments via the `venv` command so a
 
 ```{.}
 $ python -m venv /path/to/new/virtual/environment
-$ source /path/to/new/virtual/environment
+$ source /path/to/new/virtual/environment/bin/activate
 ```
