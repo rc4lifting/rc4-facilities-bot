@@ -23,4 +23,5 @@ To setup,
 ```{.}
 $ git clone https://github.com/s-kybound/dplatform.git
 $ yarn
+$ yarn build
 ```
