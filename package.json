@@ -6,5 +6,9 @@
   "repository": "https://github.com/s-kybound/dplatform.git",
   "author": "Dashing DevOps_Driven Development Coders (D4C)",
   "license": "MIT",
-  "private": "true"
+  "private": true,
+  "dependencies": {},
+  "workspaces": [
+    "packages/*"
+  ]
 }
