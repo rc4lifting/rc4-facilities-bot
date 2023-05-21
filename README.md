@@ -11,10 +11,16 @@ Dplatform is a system designed to manage the bookings of an NUS venue. It automa
 
 # Requirements
 
+Dplatform is tested using the following versions:
+
+- Node: v16.20.0
+- Yarn: v1.22.19
+
 # Usage
 
 To setup,
 
 ```{.}
 $ git clone https://github.com/s-kybound/dplatform.git
+$ yarn
 ```

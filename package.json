@@ -1,0 +1,10 @@
+{
+  "name": "dplatform",
+  "version": "0.0.1",
+  "description": "A venue booking manager",
+  "main": "index.js",
+  "repository": "https://github.com/s-kybound/dplatform.git",
+  "author": "Dashing DevOps_Driven Development Coders (D4C)",
+  "license": "MIT",
+  "private": "true"
+}
