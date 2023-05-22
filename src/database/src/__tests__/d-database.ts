@@ -1,5 +1,22 @@
 import { DDatabase } from "..";
 
+let test_URL: string;
+let test_Key: string;
+
+beforeAll(() => {
+  // Tests depend on environment variables
+  // TEST_URL and TEST_KEY, which should
+  // hold the URL and public anonymous key for
+  // a test API, not meant for production.
+  if (process.env.TEST_URL == undefined || process.env.TEST_KEY == undefined) {
+    throw new Error(
+      "TEST_URL and TEST_KEY must be defined as environment variables for tests to work!"
+    );
+  }
+  test_URL = process.env.TEST_URL;
+  test_Key = process.env.TEST_KEY;
+});
+
 describe("Dplatform Database", () => {
   describe("DDatabase.build() factory method", () => {
     it("Throws an error given no URL", () => {
@@ -29,7 +46,7 @@ describe("Dplatform Database", () => {
     it("Throws an error given valid URL but incorrect key", () => {
       return expect(
         DDatabase.build({
-          supabaseUrl: "https://pivfcbapdsurtbwrkvqn.supabase.co",
+          supabaseUrl: test_URL,
           supabaseKey: "lala",
         })
       ).rejects.toThrow("Invalid API key");
@@ -38,9 +55,8 @@ describe("Dplatform Database", () => {
       return expect(
         // This is a dummy database that we won't use.
         DDatabase.build({
-          supabaseUrl: "https://ruagihxyxiqypllejjhg.supabase.co",
-          supabaseKey:
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1YWdpaHh5eGlxeXBsbGVqamhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODQ2OTQ2NjcsImV4cCI6MjAwMDI3MDY2N30.xezQqdycAmsaJAtcEFlbh1L_aB1le6L6hX66W58uuwE",
+          supabaseUrl: test_URL,
+          supabaseKey: test_Key,
         })
       ).resolves.toBeInstanceOf(DDatabase);
     });
