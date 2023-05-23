@@ -1,4 +1,5 @@
 import { SupabaseClient, createClient } from "@supabase/supabase-js";
+import { Result, Ok, Err } from "@sniptt/monads";
 
 /**
  * A class that holds the Supabase SQL database.
@@ -58,5 +59,34 @@ export class DDatabase {
         // DDatabase instance in the promise
         .then((_) => new DDatabase(client, classOptions))
     );
+  }
+
+  public async isUser(telegramId: string): Promise<boolean> {
+    return this.client.from("USERS").select("*").then(); //temporary
+  }
+
+  public async addUser(newUser: {
+    name: string;
+    telegramId: string;
+    nusEmail: string;
+    room: string;
+  }): Promise<Result<void, Error>> {
+    return this.isUser(newUser.telegramId).then(); //temporary
+  }
+
+  async getUserId(telegramId: string): Promise<Result<number, Error>> {
+    return this.isUser(telegramId).then(); // temporary
+  }
+
+  public async isBooked(datetime: string): Promise<boolean> {
+    return this.client.from("SLOTS").select("*").then(); //temporary
+  }
+
+  public async bookSlot(booking: {
+    userTelegramId: string;
+    startTime: string;
+    endTime: string;
+  }): Promise<Result<void, Error>> {
+    return this.isBooked("placeholder").then(); //temporary;
   }
 }
