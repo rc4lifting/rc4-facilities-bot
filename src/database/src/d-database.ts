@@ -11,7 +11,7 @@ import { Result, Ok, Err } from "@sniptt/monads";
  */
 export class DDatabase {
   /** The Supabase client. */
-  readonly client: SupabaseClient;
+  private readonly client: SupabaseClient;
 
   /**
    * A private constructor for DDatabase.
@@ -31,6 +31,7 @@ export class DDatabase {
    * @param options.supabaseUrl URL for Supabase database
    * @param options.supabaseKey The public anonymous key
    * @returns A validated DDatabase instance
+   * @throws Error if either URL or key is invalid
    */
   public static async build(options: {
     supabaseUrl: string;
@@ -61,32 +62,248 @@ export class DDatabase {
     );
   }
 
+  /**
+   * Checks whether a given telegram ID represents
+   * a user already in the system.
+   *
+   * @param telegramId A telegram ID
+   * @returns Whether the user is already in the system
+   * @throws Error, if the system is already in an invalid state
+   *         (Invariant violated - multiple usage of ID in the system)
+   */
   public async isUser(telegramId: string): Promise<boolean> {
-    return this.client.from("USERS").select("*").then(); //temporary
+    return this.client
+      .from("USERS")
+      .select("*")
+      .eq("telegram_id", telegramId)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        return response.data;
+      })
+      .then((data) => {
+        if (data.length > 1) {
+          throw new Error(
+            "Illegal State: There are several users that share a telegram account!"
+          );
+        }
+        return data.length > 0;
+      });
   }
 
+  /**
+   * Adds a user to the system.
+   *
+   * @param newUser A set of fields needed to represent a user
+   * @param newUser.name User's name
+   * @param newUser.telegramId User's Telegram ID
+   * @param newUser.nusEmail User's NUS email
+   * @param newUser.room User's RC room
+   * @returns A result instance representing nothing or an error
+   *          if insertion of user fails
+   */
   public async addUser(newUser: {
     name: string;
     telegramId: string;
     nusEmail: string;
     room: string;
   }): Promise<Result<void, Error>> {
-    return this.isUser(newUser.telegramId).then(); //temporary
+    return this.isUser(newUser.telegramId).then((added) =>
+      added
+        ? Err(new Error("There exist a user with the same account!"))
+        : this.client
+            .from("USERS")
+            .insert({
+              name: newUser.name,
+              telegram_id: newUser.telegramId,
+              nus_email: newUser.nusEmail,
+              room: newUser.room,
+            })
+            .then((response) =>
+              response.error
+                ? Err(new Error(response.error.message))
+                : Ok(undefined)
+            )
+    );
   }
 
+  /**
+   * Deletes a user from the system.
+   *
+   * @param telegramId User's Telegram ID
+   * @returns A result instance representing nothing or an error
+   *          if deletion of user fails
+   */
+  public async delUser(telegramId: string): Promise<Result<void, Error>> {
+    return this.isUser(telegramId).then((added) =>
+      added
+        ? this.client
+            .from("USERS")
+            .delete()
+            .eq("telegram_id", telegramId)
+            .then((response) =>
+              response.error
+                ? Err(new Error(response.error.message))
+                : Ok(undefined)
+            )
+        : Err(new Error("There is no user with that telegram ID!"))
+    );
+  }
+
+  /**
+   * Gets a user's system ID.
+   * Useful method for methods using SLOTS table
+   *
+   * @param telegramId User's Telegram ID
+   * @returns A result instance representing the system ID
+   *          or an error if query fails
+   */
   async getUserId(telegramId: string): Promise<Result<number, Error>> {
-    return this.isUser(telegramId).then(); // temporary
+    return this.isUser(telegramId).then((added) =>
+      added
+        ? this.client
+            .from("USERS")
+            .select("id")
+            .eq("telegram_id", telegramId)
+            .then((response) =>
+              response.error
+                ? Err(new Error(response.error.message))
+                : // Safe to select array position [0], as
+                  // 1. We have already verified that the user exists
+                  // 2. An invariant that the database fulfills is that
+                  //    all users' accounts are unique
+                  Ok(response.data[0].id)
+            )
+        : Err(new Error("There is no user with that telegram ID!"))
+    );
   }
 
-  public async isBooked(datetime: string): Promise<boolean> {
-    return this.client.from("SLOTS").select("*").then(); //temporary
+  /**
+   * Determines whether a period of time is not booked;
+   * ie. a user may book the entirety of the queried
+   * time
+   *
+   * @param startTime When the query starts checking from
+   * @param endTime When the query stops checking from
+   * @returns Whether the entire time is free
+   * @throws Error on unexpected database call failure
+   */
+  public async isBooked(startTime: string, endTime: string): Promise<boolean> {
+    return this.client
+      .from("SLOTS")
+      .select("*")
+      .lte("time_begin", endTime)
+      .gte("time_end", startTime)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        return response.data;
+      })
+      .then((data) => data.length > 0);
   }
 
+  /**
+   * Books a slot.
+   *
+   * @param booking A set of fields needed to represent a booking
+   * @param booking.userTelegramId User's telegram ID
+   * @param booking.startTime Desired start time
+   * @param booking.endTime Desired end time
+   * @returns A result instance representing nothing or an error
+   *          if insertion of booking fails
+   */
   public async bookSlot(booking: {
     userTelegramId: string;
     startTime: string;
     endTime: string;
   }): Promise<Result<void, Error>> {
-    return this.isBooked("placeholder").then(); //temporary;
+    const userId = await this.getUserId(booking.userTelegramId);
+    if (userId.isErr()) {
+      // Safe to cast, as we have determined that
+      // this is an error instance,
+      return userId as Result<never, Error>;
+    }
+    return this.isBooked(booking.startTime, booking.endTime).then((booked) =>
+      booked
+        ? Err(
+            new Error(
+              "Unable to book the entire slot, part/all of it is already booked"
+            )
+          )
+        : this.client
+            .from("SLOTS")
+            .insert({
+              // Safe, as userId was previously
+              // determined to be Ok()
+              booked_by: userId.unwrap(),
+              time_begin: booking.startTime,
+              time_end: booking.endTime,
+            })
+            .then((response) =>
+              response.error
+                ? Err(new Error(response.error.message))
+                : Ok(undefined)
+            )
+    );
+  }
+
+  /**
+   * Removes a booking.
+   *
+   * @param booking A set of fields needed to represent a booking
+   * @param booking.userTelegramId User's telegram ID
+   * @param booking.startTime Desired start time
+   * @param booking.endTime Desired end time
+   * @returns A result instance representing nothing or an error
+   *          if deletion of booking fails
+   */
+  public async delSlot(booking: {
+    userTelegramId: string;
+    startTime: string;
+    endTime: string;
+  }): Promise<Result<void, Error>> {
+    const userId = await this.getUserId(booking.userTelegramId);
+    if (userId.isErr()) {
+      // Safe to cast, as we have determined that
+      // this is an error instance,
+      return userId as Result<never, Error>;
+    }
+    return this.client
+      .from("SLOTS")
+      .delete()
+      .eq("booked_by", userId.unwrap())
+      .eq("time_begin", booking.startTime)
+      .eq("time_end", booking.endTime)
+      .then((response) =>
+        response.error ? Err(new Error(response.error.message)) : Ok(undefined)
+      );
+  }
+
+  /**
+   * Provides all booked slots associated to one user.
+   *
+   * @param telegramId User's Telegram ID
+   * @returns A result instance representing set
+   *          of all bookings or an error if query fails
+   */
+  public async getSlots(
+    telegramId: string
+  ): Promise<Result<{ time_begin: string; time_end: string }[], Error>> {
+    const userId = await this.getUserId(telegramId);
+    if (userId.isErr()) {
+      // Safe to cast, as we have determined that
+      // this is an error instance,
+      return userId as Result<never, Error>;
+    }
+    return this.client
+      .from("SLOTS")
+      .select("time_begin, time_end")
+      .then((response) =>
+        response.error
+          ? Err(new Error(response.error.message))
+          : Ok(response.data)
+      );
   }
 }
