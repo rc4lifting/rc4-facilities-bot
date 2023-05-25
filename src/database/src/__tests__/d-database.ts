@@ -31,7 +31,7 @@ beforeAll(async () => {
 
 describe("Dplatform Database", () => {
   describe("build() factory method", () => {
-    it("Throws an error given no URL", () => {
+    it("Throws an error given no URL", async () => {
       return expect(
         DDatabase.build({
           supabaseUrl: "",
@@ -39,7 +39,7 @@ describe("Dplatform Database", () => {
         })
       ).rejects.toThrow("supabaseUrl is required");
     });
-    it("Throws an error given non-URL", () => {
+    it("Throws an error given non-URL", async () => {
       return expect(
         DDatabase.build({
           supabaseUrl: "lala",
@@ -47,7 +47,7 @@ describe("Dplatform Database", () => {
         })
       ).rejects.toThrow("Invalid URL");
     });
-    it("Throws an error given irrelevant URL", () => {
+    it("Throws an error given irrelevant URL", async () => {
       return expect(
         DDatabase.build({
           supabaseUrl: "https://s-kybound.github.io/",
@@ -55,7 +55,7 @@ describe("Dplatform Database", () => {
         })
       ).rejects.toThrow();
     });
-    it("Throws an error given valid URL but incorrect key", () => {
+    it("Throws an error given valid URL but incorrect key", async () => {
       return expect(
         DDatabase.build({
           supabaseUrl: test_URL,
@@ -63,7 +63,7 @@ describe("Dplatform Database", () => {
         })
       ).rejects.toThrow("Invalid API key");
     });
-    it("Proceeds with no error if given valid URL and key", () => {
+    it("Proceeds with no error if given valid URL and key", async () => {
       return expect(
         // This is a dummy database that we won't use.
         DDatabase.build({
@@ -77,7 +77,7 @@ describe("Dplatform Database", () => {
     let test_id: number;
     beforeAll(async () => {
       // We initialize a test user.
-      test_client.from("USERS").insert({
+      await test_client.from("USERS").insert({
         name: "test",
         telegram_id: "test",
         nus_email: "test",
@@ -85,26 +85,26 @@ describe("Dplatform Database", () => {
       });
       const { data, error } = await test_client
         .from("USERS")
-        .select("id")
+        .select("*")
         .eq("telegram_id", "test");
       test_id = data![0].id;
     });
     afterAll(async () => {
       // Delete all data entries
       // pertaining to our test account
-      test_client.from("SLOTS").delete().eq("booked_by", test_id);
-      test_client.from("USERS").delete().eq("telegram_id", "test");
+      await test_client.from("SLOTS").delete().eq("booked_by", test_id);
+      await test_client.from("USERS").delete().eq("telegram_id", "test");
     });
     describe("isUser method", () => {
       beforeAll(async () => {
         // Create an invalid situation in which 2 users share a telegram account
-        test_client.from("USERS").insert({
+        await test_client.from("USERS").insert({
           name: "test2",
           telegram_id: "test2",
           nus_email: "test",
           room: "test",
         });
-        test_client.from("USERS").insert({
+        await test_client.from("USERS").insert({
           name: "test3",
           telegram_id: "test2",
           nus_email: "test",
@@ -112,44 +112,429 @@ describe("Dplatform Database", () => {
         });
       });
       afterAll(async () => {
-        test_client.from("USERS").delete().eq("telegram_id", "test2");
+        await test_client.from("USERS").delete().eq("telegram_id", "test2");
       });
-      it("detects that a user is in the database", () => {
-        return expect(test_database.isUser("test")).resolves.toBeTruthy();
+      it("detects that a user is in the database", async () => {
+        return expect(test_database.isUser("test")).resolves.toEqual(true);
       });
-      it("detects that a user is not in the database", () => {
-        return expect(test_database.isUser("foo")).resolves.toBeFalsy();
+      it("detects that a user is not in the database", async () => {
+        return expect(test_database.isUser("foo")).resolves.toEqual(false);
       });
-      it("detects the illegal state in which 2 users share a telegram account", () => {
+      it("detects the illegal state in which 2 users share a telegram account", async () => {
         return expect(test_database.isUser("test2")).rejects.toThrow(
           "Illegal State"
         );
       });
     });
     describe("addUser method", () => {
-      it("initializes a new user as expected", () => {});
-      it("returns an error if the user intended to add has a duplicate telegram account", () => {});
+      afterAll(async () => {
+        await test_client.from("USERS").delete().eq("telegram_id", "test2");
+      });
+      it("initializes a new user as expected", async () => {
+        return expect(
+          test_database
+            .addUser({
+              name: "test2",
+              telegramId: "test2",
+              nusEmail: "test",
+              room: "test",
+            })
+            .then((result) =>
+              result.match({
+                ok: (_) => "ok",
+                err: (err) => err.message,
+              })
+            )
+        ).resolves.toEqual("ok");
+      });
+      it("returns an error if the user intended to add has a duplicate telegram account", async () => {
+        return expect(
+          test_database
+            .addUser({
+              name: "test3",
+              telegramId: "test",
+              nusEmail: "test",
+              room: "test",
+            })
+            .then((result) =>
+              result.match({
+                ok: (_) => "ok",
+                err: (err) => err.message,
+              })
+            )
+        ).resolves.toEqual("There exists a user with the same account!");
+      });
     });
     describe("delUser method", () => {
-      it("deletes a user as expected", () => {});
-      it("returns an error on attempt to delete nonexistent user", () => {});
+      it("deletes a user as expected", async () => {
+        await test_database.addUser({
+          name: "test2",
+          telegramId: "test2",
+          nusEmail: "test",
+          room: "test",
+        });
+        return expect(
+          test_database.delUser("test2").then((result) =>
+            result.match({
+              ok: (_) => "ok",
+              err: (err) => err.message,
+            })
+          )
+        ).resolves.toEqual("ok");
+      });
+      it("returns an error on attempt to delete nonexistent user", async () => {
+        return expect(
+          test_database.delUser("i-don't-exist").then((result) =>
+            result.match({
+              ok: (_) => "ok",
+              err: (err) => err.message,
+            })
+          )
+        ).resolves.toEqual("There is no user with that telegram ID!");
+      });
     });
     describe("isBooked method", () => {
-      it("detects that specified time is booked", () => {});
-      it("detects that specified time is free", () => {});
+      beforeAll(async () => {
+        // Book 2000 Jan 1 12pm - 1pm
+        await test_client.from("SLOTS").insert({
+          booked_by: test_id,
+          time_begin: "2000-01-01T12:00:00+0000",
+          time_end: "2000-01-01T13:00:00+0000",
+        });
+      });
+      afterAll(async () => {
+        await test_client.from("SLOTS").delete().eq("booked_by", test_id);
+      });
+      it("throws error if startTime > endTime", async () => {
+        return expect(
+          test_database.isBooked(
+            "2000-01-01T14:00:00+0000",
+            "2000-01-01T13:00:00+0000"
+          )
+        ).rejects.toThrow("strictly be before");
+      });
+      it("throws error if startTime = endTime", async () => {
+        return expect(
+          test_database.isBooked(
+            "2000-01-01T13:00:00+0000",
+            "2000-01-01T13:00:00+0000"
+          )
+        ).rejects.toThrow("strictly be before");
+      });
+      it("detects that specified time is booked (full overlap)", async () => {
+        return expect(
+          test_database.isBooked(
+            "2000-01-01T12:00:00+0000",
+            "2000-01-01T13:00:00+0000"
+          )
+        ).resolves.toEqual(true);
+      });
+      it("detects that specified time is booked (overlap with later slot)", async () => {
+        return expect(
+          test_database.isBooked(
+            "2000-01-01T11:00:00+0000",
+            "2000-01-01T12:30:00+0000"
+          )
+        ).resolves.toEqual(true);
+      });
+      it("detects that specified time is booked (overlap with earlier slot)", async () => {
+        return expect(
+          test_database.isBooked(
+            "2000-01-01T12:30:00+0000",
+            "2000-01-01T14:00:00+0000"
+          )
+        ).resolves.toEqual(true);
+      });
+      it("detects that specified time is free (completely free)", async () => {
+        return expect(
+          test_database.isBooked(
+            "2000-01-01T00:00:00+0000",
+            "2000-01-01T01:00:00+0000"
+          )
+        ).resolves.toEqual(false);
+      });
+      it("detects that specified time is free (our slot aligns with later slot)", async () => {
+        return expect(
+          test_database.isBooked(
+            "2000-01-01T11:00:00+0000",
+            "2000-01-01T12:00:00+0000"
+          )
+        ).resolves.toEqual(false);
+      });
+      it("detects that specified time is free (our slot aligns with earlier slot)", async () => {
+        return expect(
+          test_database.isBooked(
+            "2000-01-01T13:00:00+0000",
+            "2000-01-01T14:00:00+0000"
+          )
+        ).resolves.toEqual(false);
+      });
     });
     describe("bookSlot method", () => {
-      it("books a free slot", () => {});
-      it("returns an error if booking a taken slot", () => {});
-      it("returns an error booking a slot for a nonexistent user", () => {});
+      beforeAll(async () => {
+        // Book 2000 Jan 1 12pm - 1pm
+        await test_client.from("SLOTS").insert({
+          booked_by: test_id,
+          time_begin: "2000-01-01T12:00:00+0000",
+          time_end: "2000-01-01T13:00:00+0000",
+        });
+      });
+      afterAll(async () => {
+        await test_client.from("SLOTS").delete().eq("booked_by", test_id);
+      });
+      it("books a free slot (slot is completely free)", async () => {
+        return expect(
+          test_database
+            .bookSlot({
+              userTelegramId: "test",
+              startTime: "2000-01-01T00:00:00+0000",
+              endTime: "2000-01-01T01:00:00+0000",
+            })
+            .then((result) =>
+              result.match({
+                ok: (_) => "ok",
+                err: (err) => err.message,
+              })
+            )
+        ).resolves.toEqual("ok");
+      });
+      it("books a free slot (slot aligns with later slot)", async () => {
+        return expect(
+          test_database
+            .bookSlot({
+              userTelegramId: "test",
+              startTime: "2000-01-01T11:00:00+0000",
+              endTime: "2000-01-01T12:00:00+0000",
+            })
+            .then((result) =>
+              result.match({
+                ok: (_) => "ok",
+                err: (err) => err.message,
+              })
+            )
+        ).resolves.toEqual("ok");
+      });
+      it("books a free slot (slot aligns with earlier slot)", async () => {
+        return expect(
+          test_database
+            .bookSlot({
+              userTelegramId: "test",
+              startTime: "2000-01-01T13:00:00+0000",
+              endTime: "2000-01-01T14:00:00+0000",
+            })
+            .then((result) =>
+              result.match({
+                ok: (_) => "ok",
+                err: (err) => err.message,
+              })
+            )
+        ).resolves.toEqual("ok");
+      });
+      it("returns error if startTime > endTime", async () => {
+        return expect(
+          test_database
+            .bookSlot({
+              userTelegramId: "test",
+              startTime: "2000-01-01T01:00:00+0000",
+              endTime: "2000-01-01T00:00:00+0000",
+            })
+            .then((result) =>
+              result.match({
+                ok: (_) => "ok",
+                err: (err) => err.message,
+              })
+            )
+        ).resolves.toEqual("Start time must strictly be before end time!");
+      });
+      it("returns error if startTime > endTime (malformed time)", async () => {
+        return expect(
+          test_database
+            .bookSlot({
+              userTelegramId: "test",
+              startTime: "2000-01-01T13:00:00+0000",
+              endTime: "2000-01-01T4:00:00+0000",
+            })
+            .then((result) =>
+              result.match({
+                ok: (_) => "ok",
+                err: (err) => err.message,
+              })
+            )
+        ).resolves.toEqual("Start time must strictly be before end time!");
+      });
+      it("returns error if startTime = endTime", async () => {
+        return expect(
+          test_database
+            .bookSlot({
+              userTelegramId: "test",
+              startTime: "2000-01-01T00:00:00+0000",
+              endTime: "2000-01-01T00:00:00+0000",
+            })
+            .then((result) =>
+              result.match({
+                ok: (_) => "ok",
+                err: (err) => err.message,
+              })
+            )
+        ).resolves.toEqual("Start time must strictly be before end time!");
+      });
+      it("returns an error if booking a taken slot", async () => {
+        return expect(
+          test_database
+            .bookSlot({
+              userTelegramId: "test",
+              startTime: "2000-01-01T12:00:00+0000",
+              endTime: "2000-01-01T13:00:00+0000",
+            })
+            .then((result) =>
+              result.match({
+                ok: (_) => "ok",
+                err: (err) => err.message,
+              })
+            )
+        ).resolves.toEqual(
+          "Unable to book the entire slot, part/all of it is already booked"
+        );
+      });
+      it("returns an error booking a slot for a nonexistent user", async () => {
+        return expect(
+          test_database
+            .bookSlot({
+              userTelegramId: "i-don't-exist",
+              startTime: "2000-01-01T12:00:00+0000",
+              endTime: "2000-01-01T13:00:00+0000",
+            })
+            .then((result) =>
+              result.match({
+                ok: (_) => "ok",
+                err: (err) => err.message,
+              })
+            )
+        ).resolves.toEqual("There is no user with that telegram ID!");
+      });
     });
     describe("delSlot method", () => {
-      it("deletes a booked slot", () => {});
-      it("returns an error attempting to delete a slot for a nonexistent user", () => {});
+      afterAll(async () => {
+        await test_client.from("SLOTS").delete().eq("booked_by", test_id);
+      });
+      it("deletes a booked slot", async () => {
+        await test_database.bookSlot({
+          userTelegramId: "test",
+          startTime: "2000-01-01T12:00:00+0000",
+          endTime: "2000-01-01T13:00:00+0000",
+        });
+        return expect(
+          test_database
+            .delSlot({
+              userTelegramId: "test",
+              startTime: "2000-01-01T12:00:00+0000",
+              endTime: "2000-01-01T13:00:00+0000",
+            })
+            .then((result) =>
+              result.match({
+                ok: (_) => "ok",
+                err: (err) => err.message,
+              })
+            )
+        ).resolves.toEqual("ok");
+      });
+      it("deletes only the specified slot", async () => {
+        await test_database.bookSlot({
+          userTelegramId: "test",
+          startTime: "2000-01-01T12:00:00+0000",
+          endTime: "2000-01-01T13:00:00+0000",
+        });
+        await test_database.bookSlot({
+          userTelegramId: "test",
+          startTime: "2000-01-01T13:00:00+0000",
+          endTime: "2000-01-01T14:00:00+0000",
+        });
+        await test_database
+          .delSlot({
+            userTelegramId: "test",
+            startTime: "2000-01-01T12:00:00+0000",
+            endTime: "2000-01-01T13:00:00+0000",
+          })
+          .then((result) =>
+            result.match({
+              ok: (_) => "ok",
+              err: (err) => err.message,
+            })
+          );
+        return expect(
+          test_database.isBooked(
+            "2000-01-01T13:10:00+0000",
+            "2000-01-01T13:50:00+0000"
+          )
+        ).resolves.toEqual(true);
+      });
+      it("does nothing if no slots match", async () => {
+        return expect(
+          test_database
+            .delSlot({
+              userTelegramId: "test",
+              startTime: "2000-01-01T00:00:00+0000",
+              endTime: "2000-01-01T01:00:00+0000",
+            })
+            .then((result) =>
+              result.match({
+                ok: (_) => "ok",
+                err: (err) => err.message,
+              })
+            )
+        ).resolves.toEqual("ok");
+      });
+      it("returns an error attempting to delete a slot for a nonexistent user", async () => {
+        return expect(
+          test_database
+            .delSlot({
+              userTelegramId: "i-don't-exist",
+              startTime: "2000-01-01T00:00:00+0000",
+              endTime: "2000-01-01T01:00:00+0000",
+            })
+            .then((result) =>
+              result.match({
+                ok: (_) => "ok",
+                err: (err) => err.message,
+              })
+            )
+        ).resolves.toEqual("There is no user with that telegram ID!");
+      });
     });
     describe("getSlots method", () => {
-      it("can access all bookings for a user", () => {});
-      it("returns an error attempting to access a nonexistent user's bookings", () => {});
+      afterAll(async () => {
+        await test_client.from("SLOTS").delete().eq("booked_by", test_id);
+      });
+      it("can access all bookings for a user", async () => {
+        await test_database.bookSlot({
+          userTelegramId: "test",
+          startTime: "2000-01-01T12:00:00+0000",
+          endTime: "2000-01-01T13:00:00+0000",
+        });
+        await test_database.bookSlot({
+          userTelegramId: "test",
+          startTime: "2000-01-01T13:00:00+0000",
+          endTime: "2000-01-01T14:00:00+0000",
+        });
+        return expect(
+          test_database.getSlots("test").then((result) =>
+            result.match({
+              ok: (array) => array.length.toString(),
+              err: (err) => err.message,
+            })
+          )
+        ).resolves.toEqual("2");
+      });
+      it("returns an error attempting to access a nonexistent user's bookings", async () => {
+        return expect(
+          test_database.getSlots("i-don't-exist").then((result) =>
+            result.match({
+              ok: (array) => array.length.toString(),
+              err: (err) => err.message,
+            })
+          )
+        ).resolves.toEqual("There is no user with that telegram ID!");
+      });
     });
   });
 });
