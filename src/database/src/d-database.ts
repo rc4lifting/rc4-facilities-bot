@@ -111,7 +111,7 @@ export class DDatabase {
   }): Promise<Result<void, Error>> {
     return this.isUser(newUser.telegramId).then((added) =>
       added
-        ? Err(new Error("There exist a user with the same account!"))
+        ? Err(new Error("There exists a user with the same account!"))
         : this.client
             .from("USERS")
             .insert({
@@ -159,7 +159,7 @@ export class DDatabase {
    * @returns A result instance representing the system ID
    *          or an error if query fails
    */
-  async getUserId(telegramId: string): Promise<Result<number, Error>> {
+  private async getUserId(telegramId: string): Promise<Result<number, Error>> {
     return this.isUser(telegramId).then((added) =>
       added
         ? this.client
@@ -180,6 +180,18 @@ export class DDatabase {
   }
 
   /**
+   * Validates the datetimetz strings given to our booking functions
+   * by checking that startTime is earlier than endTime.
+   *
+   * @param startTime Start time
+   * @param endTime End time
+   * @returns Whether start time is strictly before end time
+   */
+  private validateTime(startTime: string, endTime: string): boolean {
+    return new Date(startTime) < new Date(endTime);
+  }
+
+  /**
    * Determines whether a period of time is not booked;
    * ie. a user may book the entirety of the queried
    * time
@@ -187,14 +199,18 @@ export class DDatabase {
    * @param startTime When the query starts checking from
    * @param endTime When the query stops checking from
    * @returns Whether the entire time is free
-   * @throws Error on unexpected database call failure
+   * @throws Error on malformed input (startTime >= endTime)
+   *         Error on unexpected database call failure
    */
   public async isBooked(startTime: string, endTime: string): Promise<boolean> {
+    if (!this.validateTime(startTime, endTime)) {
+      throw new Error("Start time must strictly be before end time!");
+    }
     return this.client
       .from("SLOTS")
       .select("*")
-      .lte("time_begin", endTime)
-      .gte("time_end", startTime)
+      .lt("time_begin", endTime)
+      .gt("time_end", startTime)
       .then((response) => {
         if (response.error) {
           throw new Error(response.error.message);
@@ -224,6 +240,9 @@ export class DDatabase {
       // Safe to cast, as we have determined that
       // this is an error instance,
       return userId as Result<never, Error>;
+    }
+    if (!this.validateTime(booking.startTime, booking.endTime)) {
+      return Err(new Error("Start time must strictly be before end time!"));
     }
     return this.isBooked(booking.startTime, booking.endTime).then((booked) =>
       booked
@@ -300,6 +319,7 @@ export class DDatabase {
     return this.client
       .from("SLOTS")
       .select("time_begin, time_end")
+      .eq("booked_by", userId.unwrap())
       .then((response) =>
         response.error
           ? Err(new Error(response.error.message))
