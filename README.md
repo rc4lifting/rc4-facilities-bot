@@ -11,8 +11,10 @@ Dplatform is a system designed to manage the bookings of an NUS venue. It automa
 
 # Requirements
 
-- Python: known working version: v3.11.3
-- Pip: known working version: v22.3.1
+Dplatform is tested using the following versions:
+
+- Node: v16.20.0
+- Yarn: v1.22.19
 
 # Usage
 
@@ -20,13 +22,6 @@ To setup,
 
 ```{.}
 $ git clone https://github.com/s-kybound/dplatform.git
-$ cd dplatform
-$ pip install -r requirements.txt
-```
-
-It is recommended to use Python virtual environments via the `venv` command so as to prevent conflicts of Dplatform's dependencies with other Python applications on the computer. To do so, before executing `pip install -r requirements.txt`,
-
-```{.}
-$ python -m venv /path/to/new/virtual/environment
-$ source /path/to/new/virtual/environment/bin/activate
+$ yarn
+$ yarn build
 ```

@@ -1,0 +1,13 @@
+{
+  "name": "dplatform-database",
+  "version": "0.0.1",
+  "description": "The database for the venue manager Dplatform",
+  "main": "index.js",
+  "author": "Dashing DevOps_Driven Development Coders (D4C)",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "@sniptt/monads": "^0.5.10",
+    "@supabase/supabase-js": "^2.22.0"
+  }
+}
