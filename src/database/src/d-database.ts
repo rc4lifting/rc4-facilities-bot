@@ -421,4 +421,15 @@ export class DDatabase {
         }
       });
   }
+  public async deleteUserByTelegramId(telegramId: string): Promise<void> {
+    return this.client
+      .from("USERS")
+      .delete()
+      .eq("telegram_id", telegramId)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+      });
+  }
 }

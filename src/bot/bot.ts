@@ -35,26 +35,26 @@ class TelegramBot {
     this.bot = new Telegraf<MyContext>(botToken);
     this.verifier = null!;
     this.database = null!;
+    (async (bot) => {
+      try {
+        await this.initializeDatabase(supabaseUrl, supabaseKey);
+        await this.initializeVerifier(apiKey);
+        await this.setupCommands();
 
-    this.initializeVerifier(apiKey).catch((error) => {
-      console.error("Error initializing verifier:", error);
-    });
-    this.initializeDatabase(supabaseUrl, supabaseKey).catch((error) => {
-      console.error("Error initializing database:", error);
-    });
-    this.setupCommands().catch((error) => {
-      console.error("Error setting up commands:", error);
-    });
-
-    // Start the bot
-    this.bot
-      .launch()
-      .then(() => {
+        // Start the bot
+        bot
+          .launch()
+          .then(() => {
+            console.log("Bot started");
+          })
+          .catch((err) => {
+            console.error("Error starting bot", err);
+          });
         console.log("Bot started");
-      })
-      .catch((err) => {
-        console.error("Error starting bot", err);
-      });
+      } catch (error) {
+        console.error("Error during initialization:", error);
+      }
+    })(this.bot);
   }
 
   private async initializeDatabase(
@@ -78,10 +78,26 @@ class TelegramBot {
 
   private async setupCommands(): Promise<void> {
     // Command handler: Start the bot
-    this.bot.command("start", (ctx) => {
-      ctx.reply("Welcome! This is the start command.");
-    });
 
+    // Command handler: Show help message
+    this.bot.command("start", (ctx) => {
+      const startMessage = `
+        Welcome to the Telegram Bot!
+  
+        Available commands:
+        /start - Start the bot
+        /help - Show the help message
+        /register - Register for the bot
+        /verify - Verify your email address
+        /unregister - Unregister and delete your data
+  
+        To begin registration, use the /register command.
+        Follow the instructions provided by the bot to complete the registration process.
+        Once registered, use the /verify command to verify your email address.
+        You can also use the /unregister command to unregister from the bot and delete your data.
+      `;
+      ctx.reply(startMessage);
+    });
     // Command handler: Show help message
     this.bot.command("help", (ctx) => {
       const helpMessage = `
@@ -90,15 +106,17 @@ class TelegramBot {
         Available commands:
         /start - Start the bot
         /help - Show the help message
+        /register - Register for the bot
         /verify - Verify your email address
+        /unregister - Unregister and delete your data
   
-        Feel free to explore and interact with the bot!
+        To begin registration, use the /register command.
+        Follow the instructions provided by the bot to complete the registration process.
+        Once registered, use the /verify command to verify your email address.
+        You can also use the /unregister command to unregister from the bot and delete your data.
       `;
       ctx.reply(helpMessage);
     });
-
-    // Command handler: Verify email address
-    this.bot.command("getCode", (ctx) => this.getAndSendVerificationCode(ctx));
 
     // https://github.com/telegraf/telegraf/issues/705
 
@@ -241,70 +259,92 @@ class TelegramBot {
         ctx.reply("An error occurred while marking the user as verified.");
       }
     });
+    // Command handler: Unregister and delete user data
+    this.bot.command("unregister", async (ctx) => {
+      const telegramId = ctx.from!.id.toString();
+
+      try {
+        await this.database.deleteUserByTelegramId(telegramId);
+        ctx.reply("You have been unregistered and your data has been deleted.");
+      } catch (error) {
+        console.error("Error unregistering user:", error);
+        ctx.reply("An error occurred while unregistering.");
+      }
+    });
+    //getCode
+    this.bot.command("getCode", async (ctx) => {
+      // Check if the user is already verified
+      //const isVerified = await this.database.isVerified(telegramId);
+      //get telegramId from context
+      //check to see if database is init
+
+      const telegramId = ctx.from!.id.toString();
+      //try catch
+      let isRegistered = false;
+      try {
+        isRegistered = await this.database.isRegistered(telegramId);
+      } catch (error) {
+        console.error("Error getting verification code:", error);
+        ctx.reply("An error occurred while getting the verification code.");
+        return;
+      }
+      //if not registered, ask them to register
+      if (!isRegistered) {
+        ctx.reply("You are not registered. Please run /register to register.");
+        return;
+      }
+
+      const isVerified = await this.database.isVerified(telegramId);
+      if (isVerified) {
+        ctx.reply("You are already verified.");
+        return;
+      }
+
+      // Generate a verification code
+      const verificationCode = this.generateVerificationCode();
+
+      // Save the verification code to the database
+      try {
+        await this.database.saveVerificationCode(telegramId, verificationCode);
+      } catch (error) {
+        console.error("Error saving verification code:", error);
+        ctx.reply("An error occurred while generating the verification code.");
+        return;
+      }
+
+      // Get the user's email address from the database
+      const userEmail = await this.database.getUserEmail(telegramId);
+      if (!userEmail) {
+        ctx.reply("Email address not found for the user.");
+        return;
+      }
+
+      // Send the verification email
+      try {
+        await this.verifier.sendVerificationEmail(userEmail, verificationCode);
+        ctx.reply(
+          "Verification email sent! Please check your email (and spam) and follow the instructions to complete the verification process."
+        );
+      } catch (error) {
+        console.error("Error sending verification email:", error);
+        ctx.reply("An error occurred while sending the verification email.");
+      }
+      //wait for reply
+      //if reply is correct, then save to database
+      //if reply is wrong, then ask them to try again
+      //if reply is wrong 3 times, then ask them to try again later`
+      // Wait for the user's reply with the verification code
+      ctx.reply(
+        "We've sent the verification code to your email address. Please run /verify {CODE} to verify your email address."
+      );
+      return;
+    });
   }
 
   private async checkAuthorization(telegramId: string): Promise<boolean> {
     // Perform authorization check based on your logic (e.g., database lookup)
     // Return true if authorized, false otherwise
     return this.database.isUser(telegramId);
-  }
-
-  private async getAndSendVerificationCode(ctx: Context): Promise<void> {
-    // Check if the user is already verified
-    //const isVerified = await this.database.isVerified(telegramId);
-    //get telegramId from context
-    const telegramId = ctx.from!.id.toString();
-    const isRegistered = await this.database.isRegistered(telegramId);
-    //if not registered, ask them to register
-    if (!isRegistered) {
-      ctx.reply("You are not registered. Please run /register to register.");
-      return;
-    }
-
-    const isVerified = await this.database.isVerified(telegramId);
-    if (isVerified) {
-      ctx.reply("You are already verified.");
-      return;
-    }
-
-    // Generate a verification code
-    const verificationCode = this.generateVerificationCode();
-
-    // Save the verification code to the database
-    try {
-      await this.database.saveVerificationCode(telegramId, verificationCode);
-    } catch (error) {
-      console.error("Error saving verification code:", error);
-      ctx.reply("An error occurred while generating the verification code.");
-      return;
-    }
-
-    // Get the user's email address from the database
-    const userEmail = await this.database.getUserEmail(telegramId);
-    if (!userEmail) {
-      ctx.reply("Email address not found for the user.");
-      return;
-    }
-
-    // Send the verification email
-    try {
-      await this.verifier.sendVerificationEmail(userEmail, verificationCode);
-      ctx.reply(
-        "Verification email sent! Please check your email (and spam) and follow the instructions to complete the verification process."
-      );
-    } catch (error) {
-      console.error("Error sending verification email:", error);
-      ctx.reply("An error occurred while sending the verification email.");
-    }
-    //wait for reply
-    //if reply is correct, then save to database
-    //if reply is wrong, then ask them to try again
-    //if reply is wrong 3 times, then ask them to try again later
-    // Wait for the user's reply with the verification code
-    ctx.reply(
-      "We've sent the verification code to your email address. Please run /verify {CODE} to verify your email address."
-    );
-    return;
   }
 
   private generateVerificationCode(): string {
