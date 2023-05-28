@@ -155,7 +155,7 @@ class TelegramBot {
       await this.database.addUser(user);
       await ctx.reply(confirm_string);
       await ctx.reply(
-        "Please run /verify to verify your email address and finish your registration."
+        "Please run /getCode to get a verification code sent your email address and finish your registration."
       );
       return ctx.scene.leave();
     });
@@ -327,6 +327,11 @@ const configData = fs.readFileSync(configPath, "utf8");
 const config: Config = yaml.load(configData) as Config;
 
 const { botToken, elasticEmailKey, supabaseUrl, supabaseKey } = config;
+//log config
+console.log("botToken: ", botToken);
+console.log("elasticEmailKey: ", elasticEmailKey);
+console.log("supabaseUrl: ", supabaseUrl);
+console.log("supabaseKey: ", supabaseKey);
 
 const bot = new TelegramBot(
   botToken,
