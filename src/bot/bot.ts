@@ -1,4 +1,4 @@
-import { Telegraf, Context, Scenes, Composer, session } from "telegraf";
+import { Telegraf, Context, Scenes, Composer, session, Markup } from "telegraf";
 import { EmailVerifier } from "../email/email";
 import { DDatabase } from "../database/src/d-database";
 import { WizardContext, WizardScene } from "telegraf/typings/scenes";
@@ -89,26 +89,12 @@ class TelegramBot {
     });
 
     // Command handler: Verify email address
-    this.bot.command("verify", async (ctx) => {
-      const telegramId = ctx.message.from.id.toString();
-      try {
-        const isAuthorized = await this.checkAuthorization(telegramId);
-        if (!isAuthorized) {
-          ctx.reply("You are not authorized to use this command.");
-          return;
-        }
-        await this.verifyEmailAddress(ctx, telegramId);
-      } catch (error) {
-        console.error("Error verifying email address:", error);
-        ctx.reply("An error occurred while verifying your email address.");
-      }
-    });
+    this.bot.command("getCode", (ctx) => this.getAndSendVerificationCode(ctx));
 
     // https://github.com/telegraf/telegraf/issues/705
 
     const nameStepHandler = new Composer<MyContext>();
     nameStepHandler.on("text", async (ctx) => {
-      //const name = await ctx.reply(ctx.message.text);
       if (ctx.message!.text.length < 3) {
         console.log("name is invalid");
         await ctx.reply("Please enter a valid name.");
@@ -122,17 +108,16 @@ class TelegramBot {
 
     const emailStepHandler = new Composer<MyContext>();
     emailStepHandler.on("text", async (ctx) => {
-      //const name = await ctx.reply(ctx.message.text);
       const email = ctx.message.text;
-      console.log(ctx.message.text);
-      if (email.length < 3) {
-        console.log("email is invalid");
-        await ctx.reply("Please enter a valid email.");
+      const emailRegex = /^[A-Za-z0-9._%+-]+@u\.nus\.edu$/;
+      if (!emailRegex.test(email)) {
+        await ctx.reply(
+          "Please enter a valid NUS email address (e.g., XXX@u.nus.edu)."
+        );
         return;
       }
       ctx.scene.session.email = email;
       await ctx.reply("Please enter your room number.");
-      console.log("email is valid");
       return ctx.wizard.next();
     });
     const roomStepHandler = new Composer<MyContext>();
@@ -147,11 +132,22 @@ class TelegramBot {
       ctx.scene.session.room_no = room;
       //reply all ctx scene
       //reply with his data formatted
-      await ctx.reply("Name: " + ctx.scene.session.name);
-      await ctx.reply("Email: " + ctx.scene.session.email);
-      await ctx.reply("Room: " + ctx.scene.session.room_no);
-
       console.log("room is valid");
+      const confirm_string = `Your name is ${ctx.scene.session.name}, your email is ${ctx.scene.session.email} and your room is ${ctx.scene.session.room_no}.`;
+      //add to database
+      const telegramId = ctx.message!.from!.id.toString();
+      //create a user as a json object
+      const user = {
+        name: ctx.scene.session.name,
+        telegramId: telegramId,
+        nusEmail: ctx.scene.session.email,
+        room: ctx.scene.session.room_no,
+      };
+      await this.database.addUser(user);
+      await ctx.reply(confirm_string);
+      await ctx.reply(
+        `Please run /verify to verify your email address and finish your registration.`
+      );
       return ctx.scene.leave();
     });
 
@@ -159,8 +155,28 @@ class TelegramBot {
     const registrationWizard = new Scenes.WizardScene(
       "registration",
       async (ctx) => {
+        //const name = await ctx.reply(ctx.message.text);
+        //check if alreayd registered
+        const telegramId = ctx.message!.from!.id.toString();
+        const isRegistered = await this.database.isRegistered(telegramId);
+        const isVerified = await this.database.isVerified(telegramId);
+        //log isRegistered, isVerified
+        console.log("isRegistered: ", isRegistered);
+        console.log("isVerified: ", isVerified);
+        console.log("telegramId: ", telegramId);
+        if (isRegistered) {
+          await ctx.reply("You have already registered.");
+          if (isVerified) {
+            await ctx.reply("You have also already verified your email.");
+          } else {
+            await ctx.reply(
+              "However, you have not verified your email. Please run /getCode to get a verification code for your email address."
+            );
+          }
+          return ctx.scene.leave();
+        }
         await ctx.reply("Please enter your name:");
-        //console log this hsit
+        //console log this
         return ctx.wizard.next();
       },
       nameStepHandler,
@@ -172,6 +188,50 @@ class TelegramBot {
     this.bot.use(session());
     this.bot.use(stage.middleware());
     this.bot.command("register", (ctx) => ctx.scene.enter("registration"));
+    // Command handler: Verify email address with code
+    this.bot.command("verify", async (ctx) => {
+      const telegramId = ctx.from!.id.toString();
+      const isRegistered = await this.database.isRegistered(telegramId);
+      if (!isRegistered) {
+        ctx.reply("You are not registered. Please run /register to register.");
+        return;
+      }
+
+      const isVerified = await this.database.isVerified(telegramId);
+      if (isVerified) {
+        ctx.reply("You are already verified.");
+        return;
+      }
+
+      const verificationCode = ctx.message.text.split(" ")[1];
+      if (!verificationCode) {
+        ctx.reply("Please provide a verification code. Usage: /verify {CODE}");
+        return;
+      }
+
+      const storedVerificationCode = await this.database.getVerificationCode(
+        telegramId
+      );
+      if (!storedVerificationCode) {
+        ctx.reply(
+          "No verification code found. Please generate a new verification code via /getCode."
+        );
+        return;
+      }
+
+      if (verificationCode !== storedVerificationCode) {
+        ctx.reply("Invalid verification code. Please try again.");
+        return;
+      }
+
+      try {
+        await this.database.markUserAsVerified(telegramId);
+        ctx.reply("Email address verified successfully!");
+      } catch (error) {
+        console.error("Error marking user as verified:", error);
+        ctx.reply("An error occurred while marking the user as verified.");
+      }
+    });
   }
 
   private async checkAuthorization(telegramId: string): Promise<boolean> {
@@ -180,15 +240,21 @@ class TelegramBot {
     return this.database.isUser(telegramId);
   }
 
-  private async verifyEmailAddress(
-    ctx: Context,
-    telegramId: string
-  ): Promise<void> {
+  private async getAndSendVerificationCode(ctx: Context): Promise<void> {
     // Check if the user is already verified
     //const isVerified = await this.database.isVerified(telegramId);
-    const isVerified = true;
+    //get telegramId from context
+    const telegramId = ctx.from!.id.toString();
+    const isRegistered = await this.database.isRegistered(telegramId);
+    //if not registered, ask them to register
+    if (!isRegistered) {
+      ctx.reply("You are not registered. Please run /register to register.");
+      return;
+    }
+
+    const isVerified = await this.database.isVerified(telegramId);
     if (isVerified) {
-      ctx.reply("Your email address is already verified.");
+      ctx.reply("You are already verified.");
       return;
     }
 
@@ -215,12 +281,21 @@ class TelegramBot {
     try {
       await this.verifier.sendVerificationEmail(userEmail, verificationCode);
       ctx.reply(
-        "Verification email sent! Please check your email and follow the instructions to complete the verification process."
+        "Verification email sent! Please check your email (and spam) and follow the instructions to complete the verification process."
       );
     } catch (error) {
       console.error("Error sending verification email:", error);
       ctx.reply("An error occurred while sending the verification email.");
     }
+    //wait for reply
+    //if reply is correct, then save to database
+    //if reply is wrong, then ask them to try again
+    //if reply is wrong 3 times, then ask them to try again later
+    // Wait for the user's reply with the verification code
+    ctx.reply(
+      "We've sent the verification code to your email address. Please run /verify {CODE} to verify your email address."
+    );
+    return;
   }
 
   private generateVerificationCode(): string {
@@ -233,8 +308,13 @@ class TelegramBot {
 
 // Usage
 const botToken = process.env.BOT_TOKEN || "YOUR_BOT_TOKEN";
-const apiKey = process.env.ELASTICEMAIL_KEY || "YOUR_API_KEY";
+const elasticEmailkey = process.env.ELASTICEMAIL_KEY || "YOUR_API_KEY";
 const supabaseUrl = process.env.SUPABASE_URL || "YOUR_SUPABASE_URL";
 const supabaseKey = process.env.SUPABASE_KEY || "YOUR_SUPABASE_KEY";
 
-const bot = new TelegramBot(botToken, apiKey, supabaseUrl, supabaseKey);
+const bot = new TelegramBot(
+  botToken,
+  elasticEmailkey,
+  supabaseUrl,
+  supabaseKey
+);

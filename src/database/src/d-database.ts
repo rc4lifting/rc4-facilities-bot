@@ -326,4 +326,99 @@ export class DDatabase {
           : Ok(response.data)
       );
   }
+
+  public async getUserEmail(telegramId: string): Promise<string | null> {
+    return this.client
+      .from("USERS")
+      .select("nus_email")
+      .eq("telegram_id", telegramId)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        const userData = response.data;
+        if (userData.length > 0) {
+          return userData[0].nus_email;
+        }
+        return null;
+      });
+  }
+
+  public async saveVerificationCode(
+    telegramId: string,
+    verificationCode: string
+  ): Promise<void> {
+    return this.client
+      .from("USERS")
+      .update({ verification_code: verificationCode })
+      .eq("telegram_id", telegramId)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+      });
+  }
+
+  public async getVerificationCode(telegramId: string): Promise<string | null> {
+    return this.client
+      .from("USERS")
+      .select("verification_code")
+      .eq("telegram_id", telegramId)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        const userData = response.data;
+        if (userData.length > 0) {
+          return userData[0].verification_code;
+        }
+        return null;
+      });
+  }
+
+  //check if user is registered
+  public async isRegistered(telegramId: string): Promise<boolean> {
+    return this.client
+      .from("USERS")
+      .select("telegram_id")
+      .eq("telegram_id", telegramId)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        const userData = response.data;
+        if (userData.length > 0) {
+          return true;
+        }
+        return false;
+      });
+  }
+
+  public async isVerified(telegramId: string): Promise<boolean> {
+    return this.client
+      .from("USERS")
+      .select("is_auth")
+      .eq("telegram_id", telegramId)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        const userData = response.data;
+        if (userData.length > 0) {
+          return userData[0].is_auth;
+        }
+        return false;
+      });
+  }
+  public async markUserAsVerified(telegramId: string): Promise<void> {
+    return this.client
+      .from("USERS")
+      .update({ is_auth: true })
+      .eq("telegram_id", telegramId)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+      });
+  }
 }
