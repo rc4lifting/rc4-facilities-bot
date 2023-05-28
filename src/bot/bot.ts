@@ -1,8 +1,19 @@
-import { Telegraf, Context } from "telegraf";
+import { Telegraf, Context, Scenes, Composer, session } from "telegraf";
 import { EmailVerifier } from "../email/email";
 import { DDatabase } from "../database/src/d-database";
+import { WizardContext, WizardScene } from "telegraf/typings/scenes";
+
+interface MyWizardSession extends Scenes.WizardSessionData {
+  // will be available under `ctx.scene.session.myWizardSessionProp`
+  name: string;
+  email: string;
+  room_no: string;
+}
+type MyContext = Scenes.WizardContext<MyWizardSession>;
+//https://github.com/feathers-studio/telegraf-docs/blob/master/examples/wizards/wizard-with-custom-scene-session.ts
+//const nameStepHandler = new Composer<Scenes.WizardContext>();
 class TelegramBot {
-  private bot: Telegraf<Context>;
+  private bot: Telegraf<MyContext>;
   private verifier: EmailVerifier;
   private database: DDatabase;
 
@@ -12,7 +23,7 @@ class TelegramBot {
     supabaseUrl: string,
     supabaseKey: string
   ) {
-    this.bot = new Telegraf<Context>(botToken);
+    this.bot = new Telegraf<MyContext>(botToken);
     this.verifier = null!;
     this.database = null!;
 
@@ -57,20 +68,6 @@ class TelegramBot {
   }
 
   private async setupCommands(): Promise<void> {
-    // Command handler: Check if user is authorized
-    this.bot.command("*", async (ctx) => {
-      const telegramId = ctx.message.from.id.toString();
-      try {
-        const isAuthorized = await this.checkAuthorization(telegramId);
-        if (!isAuthorized) {
-          await this.registerUser(ctx, telegramId);
-        }
-      } catch (error) {
-        console.error("Error checking authorization:", error);
-        ctx.reply("An error occurred while checking authorization.");
-      }
-    });
-
     // Command handler: Start the bot
     this.bot.command("start", (ctx) => {
       ctx.reply("Welcome! This is the start command.");
@@ -106,53 +103,81 @@ class TelegramBot {
         ctx.reply("An error occurred while verifying your email address.");
       }
     });
+
+    // https://github.com/telegraf/telegraf/issues/705
+
+    const nameStepHandler = new Composer<MyContext>();
+    nameStepHandler.on("text", async (ctx) => {
+      //const name = await ctx.reply(ctx.message.text);
+      if (ctx.message!.text.length < 3) {
+        console.log("name is invalid");
+        await ctx.reply("Please enter a valid name.");
+        return;
+      }
+      console.log("name is valid");
+      ctx.scene.session.name = ctx.message.text;
+      await ctx.reply("Please enter your NUS email.");
+      return ctx.wizard.next();
+    });
+
+    const emailStepHandler = new Composer<MyContext>();
+    emailStepHandler.on("text", async (ctx) => {
+      //const name = await ctx.reply(ctx.message.text);
+      const email = ctx.message.text;
+      console.log(ctx.message.text);
+      if (email.length < 3) {
+        console.log("email is invalid");
+        await ctx.reply("Please enter a valid email.");
+        return;
+      }
+      ctx.scene.session.email = email;
+      await ctx.reply("Please enter your room number.");
+      console.log("email is valid");
+      return ctx.wizard.next();
+    });
+    const roomStepHandler = new Composer<MyContext>();
+    roomStepHandler.on("text", async (ctx) => {
+      const room = ctx.message.text;
+      console.log(ctx.message.text);
+      if (room.length < 3) {
+        console.log("room is invalid");
+        await ctx.reply("Please enter a valid room.");
+        return;
+      }
+      ctx.scene.session.room_no = room;
+      //reply all ctx scene
+      //reply with his data formatted
+      await ctx.reply("Name: " + ctx.scene.session.name);
+      await ctx.reply("Email: " + ctx.scene.session.email);
+      await ctx.reply("Room: " + ctx.scene.session.room_no);
+
+      console.log("room is valid");
+      return ctx.scene.leave();
+    });
+
+    // Setup the registration wizard
+    const registrationWizard = new Scenes.WizardScene(
+      "registration",
+      async (ctx) => {
+        await ctx.reply("Please enter your name:");
+        //console log this hsit
+        return ctx.wizard.next();
+      },
+      nameStepHandler,
+      emailStepHandler,
+      roomStepHandler
+    );
+
+    const stage = new Scenes.Stage<MyContext>([registrationWizard], {});
+    this.bot.use(session());
+    this.bot.use(stage.middleware());
+    this.bot.command("register", (ctx) => ctx.scene.enter("registration"));
   }
 
   private async checkAuthorization(telegramId: string): Promise<boolean> {
     // Perform authorization check based on your logic (e.g., database lookup)
     // Return true if authorized, false otherwise
     return this.database.isUser(telegramId);
-  }
-
-  private async registerUser(ctx: Context, telegramId: string): Promise<void> {
-    ctx.reply("You are not authorized. Please register to use this bot.");
-
-    // Prompt the user for registration information
-    ctx.reply("Please enter your name:");
-    const nameResponse = await this.waitForUserResponse(ctx);
-    const name = nameResponse.text;
-
-    ctx.reply("Please enter your NUS email (e.g., yourname@u.nus.edu):");
-    const emailResponse = await this.waitForUserResponse(ctx);
-    const email = emailResponse.text;
-
-    // Validate the NUS email
-    const emailRegex = /^[A-Za-z0-9._%+-]+@u\.nus\.edu$/;
-    if (!emailRegex.test(email)) {
-      ctx.reply("Invalid NUS email. Please provide a valid NUS email address.");
-      return;
-    }
-
-    ctx.reply("Please enter your room number:");
-    const roomResponse = await this.waitForUserResponse(ctx);
-    const room = roomResponse.text;
-
-    // Save user information to the database
-    const newUser = {
-      name,
-      telegramId,
-      nusEmail: email,
-      room,
-    };
-    try {
-      await this.database.addUser(newUser);
-      ctx.reply(
-        "User added successfully! Please run /verify to complete the registration."
-      );
-    } catch (error) {
-      console.error("Error adding user:", error);
-      ctx.reply("An error occurred while adding the user.");
-    }
   }
 
   private async verifyEmailAddress(
@@ -203,14 +228,6 @@ class TelegramBot {
     return Math.floor(Math.random() * 1000000)
       .toString()
       .padStart(6, "0");
-  }
-
-  private async waitForUserResponse(ctx: Context): Promise<{ text: string }> {
-    return new Promise((resolve) => {
-      this.bot.on("text", (message) => {
-        resolve({ text: "hehe" });
-      });
-    });
   }
 }
 
