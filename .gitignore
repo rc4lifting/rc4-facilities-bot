@@ -130,3 +130,6 @@ dist
 .pnp.*
 src/bot/bot.js
 src/database/src/d-database.js
+
+#ignore all yamls
+*.yaml
