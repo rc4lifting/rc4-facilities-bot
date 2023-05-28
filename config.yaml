@@ -1,0 +1,6 @@
+# config.yaml
+
+botToken: ${BOT_TOKEN}
+elasticEmailKey: ${ELASTICEMAIL_KEY}
+supabaseUrl: ${SUPABASE_URL}
+supabaseKey: ${SUPABASE_KEY}

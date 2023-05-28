@@ -2,6 +2,15 @@ import { Telegraf, Context, Scenes, Composer, session, Markup } from "telegraf";
 import { EmailVerifier } from "../email/email";
 import { DDatabase } from "../database/src/d-database";
 import { WizardContext, WizardScene } from "telegraf/typings/scenes";
+import * as fs from "fs";
+import * as yaml from "js-yaml";
+
+interface Config {
+  botToken: string;
+  elasticEmailKey: string;
+  supabaseUrl: string;
+  supabaseKey: string;
+}
 
 interface MyWizardSession extends Scenes.WizardSessionData {
   // will be available under `ctx.scene.session.myWizardSessionProp`
@@ -146,7 +155,7 @@ class TelegramBot {
       await this.database.addUser(user);
       await ctx.reply(confirm_string);
       await ctx.reply(
-        `Please run /verify to verify your email address and finish your registration.`
+        "Please run /verify to verify your email address and finish your registration."
       );
       return ctx.scene.leave();
     });
@@ -306,15 +315,22 @@ class TelegramBot {
   }
 }
 
-// Usage
-const botToken = process.env.BOT_TOKEN || "YOUR_BOT_TOKEN";
-const elasticEmailkey = process.env.ELASTICEMAIL_KEY || "YOUR_API_KEY";
-const supabaseUrl = process.env.SUPABASE_URL || "YOUR_SUPABASE_URL";
-const supabaseKey = process.env.SUPABASE_KEY || "YOUR_SUPABASE_KEY";
+interface Config {
+  botToken: string;
+  elasticEmailKey: string;
+  supabaseUrl: string;
+  supabaseKey: string;
+}
+
+const configPath = "./config.yaml";
+const configData = fs.readFileSync(configPath, "utf8");
+const config: Config = yaml.load(configData) as Config;
+
+const { botToken, elasticEmailKey, supabaseUrl, supabaseKey } = config;
 
 const bot = new TelegramBot(
   botToken,
-  elasticEmailkey,
+  elasticEmailKey,
   supabaseUrl,
   supabaseKey
 );
