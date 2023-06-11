@@ -397,10 +397,19 @@ class TelegramBot {
       const endTime = ctx.match![3];
 
       ctx.editMessageText(
-        `You selected ${endTime} as ending time. Your booking is from ${startTime} to ${endTime} on ${date}.`
+        `You selected ${endTime} as ending time. Your ballot is from ${startTime} to ${endTime} on ${date}.`
       );
-
-      // Further processing goes here
+      //add to database
+      const start = new Date(`${date}T${startTime}:00`);
+      const end = new Date(`${date}T${endTime}:00`);
+      try {
+        this.database.addBallotToDatabase(ctx.from!.id.toString(), start, end);
+        ctx.reply("Ballot added to database.");
+      } catch (error) {
+        console.error("Error adding ballot to database:", error);
+        ctx.reply("An error occurred while adding ballot to database.");
+        return;
+      }
     });
 
     //getCode

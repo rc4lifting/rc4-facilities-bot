@@ -421,11 +421,31 @@ export class DDatabase {
         }
       });
   }
+
   public async deleteUserByTelegramId(telegramId: string): Promise<void> {
     return this.client
       .from("USERS")
       .delete()
       .eq("telegram_id", telegramId)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+      });
+  }
+
+  public async addBallotToDatabase(
+    telegramId: string,
+    startTime: Date,
+    endTime: Date
+  ): Promise<void> {
+    return this.client
+      .from("BALLOTS")
+      .insert({
+        telegram_id: telegramId,
+        time_begin: startTime.toISOString(),
+        time_end: endTime.toISOString(),
+      })
       .then((response) => {
         if (response.error) {
           throw new Error(response.error.message);
