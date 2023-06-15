@@ -1,1 +1,0 @@
-export { DManager } from "./dmanager";
