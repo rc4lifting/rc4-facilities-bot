@@ -1,6 +1,6 @@
 import { Telegraf, Context, Scenes, Composer, session, Markup } from "telegraf";
 import { EmailVerifier } from "../email/email";
-import { DDatabase } from "../database/src/d-database";
+import { DDatabase } from "../database/d-database";
 import { WizardContext, WizardScene } from "telegraf/typings/scenes";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
@@ -313,7 +313,7 @@ class TelegramBot {
     // Helper function to generate a range of time slots
     const generateTimeSlots = (start: Date, end: Date, interval: number) => {
       const slots = Array<string>();
-      let current = start;
+      const current = start;
 
       while (current < end) {
         const hours = String(current.getHours()).padStart(2, "0");
@@ -350,9 +350,9 @@ class TelegramBot {
         Markup.button.callback(slot, `START_TIME ${date} ${slot}`)
       );
       */
-      const buttons = Array();
+      const buttons = [];
       for (let i = 0; i < config.rows; i++) {
-        const row = Array();
+        const row = [];
         for (let j = 0; j < config.columns; j++) {
           const index = i * config.columns + j;
           if (index < slots.length) {
