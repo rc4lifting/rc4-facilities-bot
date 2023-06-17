@@ -1,1 +1,1 @@
-export { DDatabase } from "../d-database";
+export { DDatabase } from "./d-database";
