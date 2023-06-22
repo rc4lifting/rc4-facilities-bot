@@ -94,6 +94,7 @@ describe("Dplatform Database", () => {
       // pertaining to our test account
       await test_client.from("SLOTS").delete().eq("booked_by", test_id);
       await test_client.from("USERS").delete().eq("telegram_id", "test");
+      await test_client.from("BALLOTS").delete().eq("user_id", test_id);
     });
     describe("isUser method", () => {
       beforeAll(async () => {
@@ -525,7 +526,7 @@ describe("Dplatform Database", () => {
           )
         ).resolves.toEqual("2");
       });
-      it("returns an error attempting to access a nonexistent user's bookings", async () => {
+      it("returns an error attempting to access a nonexistent user", async () => {
         return expect(
           test_database.getSlots("i-don't-exist").then((result) =>
             result.match({
@@ -534,6 +535,214 @@ describe("Dplatform Database", () => {
             })
           )
         ).resolves.toEqual("There is no user with that telegram ID!");
+      });
+    });
+    describe("getUserEmail method", () => {
+      it("can get the email of a user", async () => {
+        return expect(test_database.getUserEmail("test")).resolves.toEqual(
+          "test"
+        );
+      });
+      it("returns null if the user does not exist", async () => {
+        return expect(
+          test_database.getUserEmail("i-don't-exist")
+        ).resolves.toBeNull();
+      });
+    });
+    describe("addBallot method", () => {
+      afterAll(async () => {
+        await test_client.from("BALLOTS").delete().eq("user_id", test_id);
+      });
+      it("ballots a slot", async () => {
+        return expect(
+          test_database
+            .addBallot(
+              "test",
+              new Date("2000-01-01T13:00:00+0000"),
+              new Date("2000-01-01T14:00:00+0000")
+            )
+            .then((result) => "ok")
+        ).resolves.toEqual("ok");
+      });
+      it("returns error if startTime > endTime", async () => {
+        return expect(
+          test_database
+            .addBallot(
+              "test",
+              new Date("2000-01-01T14:00:00+0000"),
+              new Date("2000-01-01T13:00:00+0000")
+            )
+            .then((result) => "ok")
+        ).rejects.toThrowError();
+      });
+      it("returns error if startTime = endTime", async () => {
+        return expect(
+          test_database
+            .addBallot(
+              "test",
+              new Date("2000-01-01T13:00:00+0000"),
+              new Date("2000-01-01T13:00:00+0000")
+            )
+            .then((result) => "ok")
+        ).rejects.toThrowError();
+      });
+      it("returns an error booking a slot for a nonexistent user", async () => {
+        return expect(
+          test_database
+            .addBallot(
+              "i-don't-exist",
+              new Date("2000-01-01T13:00:00+0000"),
+              new Date("2000-01-01T14:00:00+0000")
+            )
+            .then((result) => "ok")
+        ).rejects.toThrowError();
+      });
+    });
+    describe("delBallot method", () => {
+      afterAll(async () => {
+        await test_client.from("BALLOTS").delete().eq("user_id", test_id);
+      });
+      it("deletes a booked slot", async () => {
+        await test_database.addBallot(
+          "test",
+          new Date("2000-01-01T12:00:00+0000"),
+          new Date("2000-01-01T13:00:00+0000")
+        );
+        return expect(
+          test_database
+            .delBallot({
+              userTelegramId: "test",
+              startTime: "2000-01-01T12:00:00+0000",
+              endTime: "2000-01-01T13:00:00+0000",
+            })
+            .then((result) => "ok")
+        ).resolves.toEqual("ok");
+      });
+      it("does nothing if no slots match", async () => {
+        return expect(
+          test_database
+            .delBallot({
+              userTelegramId: "test",
+              startTime: "2000-01-01T00:00:00+0000",
+              endTime: "2000-01-01T01:00:00+0000",
+            })
+            .then((result) => "ok")
+        ).resolves.toEqual("ok");
+      });
+      it("returns an error attempting to delete a slot for a nonexistent user", async () => {
+        return expect(
+          test_database
+            .delBallot({
+              userTelegramId: "i-don't-exist",
+              startTime: "2000-01-01T00:00:00+0000",
+              endTime: "2000-01-01T01:00:00+0000",
+            })
+            .then((result) => "ok")
+        ).rejects.toThrowError();
+      });
+    });
+    describe("getBallotsByTime method", () => {
+      afterAll(async () => {
+        await test_client.from("BALLOTS").delete().eq("user_id", test_id);
+      });
+      beforeAll(async () => {
+        await test_database.addBallot(
+          "test",
+          new Date("2000-01-02T00:00:00+0000"),
+          new Date("2000-01-02T01:00:00+0000")
+        );
+        await test_database.addBallot(
+          "test",
+          new Date("2000-01-05T12:00:00+0000"),
+          new Date("2000-01-05T13:00:00+0000")
+        );
+        await test_database.addBallot(
+          "test",
+          new Date("2000-01-07T12:00:00+0000"),
+          new Date("2000-01-07T13:00:00+0000")
+        );
+      });
+      it("gets only 2 balloted slots in the range", async () => {
+        return expect(
+          test_database
+            .getBallotsByTime(
+              new Date("2000-01-01T12:00:00+0000"),
+              new Date("2000-01-06T13:00:00+0000")
+            )
+            .then((result) => result.length)
+        ).resolves.toEqual(2);
+      });
+    });
+    describe("delBallotsByTime method", () => {
+      afterAll(async () => {
+        await test_client.from("BALLOTS").delete().eq("user_id", test_id);
+      });
+      beforeAll(async () => {
+        await test_database.addBallot(
+          "test",
+          new Date("2000-01-02T00:00:00+0000"),
+          new Date("2000-01-02T01:00:00+0000")
+        );
+        await test_database.addBallot(
+          "test",
+          new Date("2000-01-05T12:00:00+0000"),
+          new Date("2000-01-05T13:00:00+0000")
+        );
+        await test_database.addBallot(
+          "test",
+          new Date("2000-01-07T12:00:00+0000"),
+          new Date("2000-01-07T13:00:00+0000")
+        );
+      });
+      it("deletes only balloted slots in the range", async () => {
+        await test_database.delBallotsByTime(
+          new Date("2000-01-01T12:00:00+0000"),
+          new Date("2000-01-04T13:00:00+0000")
+        );
+        return expect(
+          test_database
+            .getBallotsByTime(
+              new Date("2000-01-07T12:00:00+0000"),
+              new Date("2000-01-08T13:00:00+0000")
+            )
+            .then((result) => result.length)
+        ).resolves.toEqual(1);
+      });
+    });
+    describe("getBallotsFromUser method", () => {
+      afterAll(async () => {
+        await test_client.from("BALLOTS").delete().eq("user_id", test_id);
+      });
+      beforeAll(async () => {
+        await test_database.addBallot(
+          "test",
+          new Date("2000-01-02T00:00:00+0000"),
+          new Date("2000-01-02T01:00:00+0000")
+        );
+        await test_database.addBallot(
+          "test",
+          new Date("2000-01-05T12:00:00+0000"),
+          new Date("2000-01-05T13:00:00+0000")
+        );
+        await test_database.addBallot(
+          "test",
+          new Date("2000-01-07T12:00:00+0000"),
+          new Date("2000-01-07T13:00:00+0000")
+        );
+      });
+      it("retrieves the 3 ballots belonging to our user", async () => {
+        return expect(
+          test_database
+            .getBallotsFromUser("test")
+            .then((result) => result.length)
+        ).resolves.toEqual(3);
+      });
+      it("throws an error on attempting to access nonexistent user", async () => {
+        return expect(
+          test_database
+            .getBallotsFromUser("don't-exist")
+            .then((result) => result.length)
+        ).rejects.toThrowError("There is no user with that telegram ID!");
       });
     });
   });
