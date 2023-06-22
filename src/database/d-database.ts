@@ -438,6 +438,9 @@ export class DDatabase {
       // this is an error instance,
       throw userId.unwrapErr();
     }
+    if (startTime >= endTime) {
+      throw new Error("Start time must strictly be before end time!");
+    }
     return this.client
       .from("BALLOTS")
       .insert({
