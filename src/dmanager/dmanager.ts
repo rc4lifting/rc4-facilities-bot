@@ -17,17 +17,24 @@ export class DManager {
     const ballotStart = new Date(weekStart.getDate() + 7);
     // End of balloting period - next next week
     const ballotEnd = new Date(ballotStart.getDate() + 7);
-    const ballots = await this.database.getBallotsByTime(ballotStart, ballotEnd);
+    const ballots = await this.database.getBallotsByTime(
+      ballotStart,
+      ballotEnd
+    );
     // If there are no issues getting the ballots, delete them from the database
     await this.database.delBallotsByTime(ballotStart, ballotEnd);
     // placeholder algorithm. not the best.
     const shuffled = shuffle(ballots);
     for (let x = 0; x < shuffled.length; x++) {
-      await this.book({
-        userTelegramId: shuffled[x].telegram_id,
-        startTime: shuffled[x].time_begin,
-        endTime: shuffled[x].time_end,
-      });
+      try {
+        await this.book({
+          userTelegramId: shuffled[x].telegram_id,
+          startTime: shuffled[x].time_begin,
+          endTime: shuffled[x].time_end,
+        });
+      } catch (e) {
+        // If there's an error from conflicting bookings, no issue!
+      }
     }
   }
 
