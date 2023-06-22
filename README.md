@@ -44,3 +44,9 @@ $ export TEST_KEY={Your supabase API Key here}
 $ yarn build
 $ node ./dist/bot/bot.js
 ```
+
+To update the types used in the Supabase database,
+```{.}
+$ export PROJECT_REF={The supabase project reference used}
+$ yarn update-types
+```
