@@ -37,6 +37,7 @@
     "@sniptt/monads": "^0.5.10",
     "@supabase/supabase-js": "^2.26.0",
     "axios": "^1.4.0",
+    "date-fns": "^2.30.0",
     "js-yaml": "^4.1.0",
     "telegraf": "^4.12.2"
   }

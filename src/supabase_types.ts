@@ -13,6 +13,7 @@ export interface Database {
         Row: {
           created_at: string;
           id: number;
+          telegram_id: string;
           time_begin: string;
           time_end: string;
           user_id: number | null;
@@ -20,6 +21,7 @@ export interface Database {
         Insert: {
           created_at?: string;
           id?: number;
+          telegram_id: string;
           time_begin: string;
           time_end: string;
           user_id?: number | null;
@@ -27,11 +29,18 @@ export interface Database {
         Update: {
           created_at?: string;
           id?: number;
+          telegram_id?: string;
           time_begin?: string;
           time_end?: string;
           user_id?: number | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "BALLOTS_telegram_id_fkey";
+            columns: ["telegram_id"];
+            referencedRelation: "USERS";
+            referencedColumns: ["telegram_id"];
+          },
           {
             foreignKeyName: "BALLOTS_user_id_fkey";
             columns: ["user_id"];
@@ -113,7 +122,3 @@ export interface Database {
     };
   };
 }
-
-export type User = Database["public"]["Tables"]["USERS"]["Row"];
-export type Slot = Database["public"]["Tables"]["SLOTS"]["Row"];
-export type Ballot = Database["public"]["Tables"]["BALLOTS"]["Row"];
