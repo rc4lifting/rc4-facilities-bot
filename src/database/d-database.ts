@@ -527,4 +527,20 @@ export class DDatabase {
         return response.data;
       });
   }
+  public async getAllBookedSlots(): Promise<any> {
+    // Get the current date-time in ISO 8601 format
+    const currentTime = new Date().toISOString();
+    return this.client
+      .from("SLOTS")
+      .select("*")
+      .gte("time_begin", currentTime)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+
+        // Return the response data directly
+        return response.data;
+      });
+  }
 }

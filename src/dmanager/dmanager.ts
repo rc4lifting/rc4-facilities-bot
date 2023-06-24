@@ -8,19 +8,19 @@ export class DManager {
   public constructor(database: DDatabase) {
     this.database = database;
   }
-  
+
   /**
-   * Using the current time, get the start of what we define 
+   * Using the current time, get the start of what we define
    * as the "previous week" - Monday to Sunday.
-   * 
+   *
    * @returns The start of the current week, Monday.
    */
   private weekStart(): Date {
-    const start = previousSunday(Date.now())
+    const start = previousSunday(Date.now());
     start.setHours(0);
-    start.setMinutes(0)
-    start.setSeconds(0)
-    start.setMilliseconds(0)
+    start.setMinutes(0);
+    start.setSeconds(0);
+    start.setMilliseconds(0);
     return addDays(start, 1);
   }
 
@@ -29,7 +29,7 @@ export class DManager {
    */
   public async resolve(): Promise<void> {
     // Start of balloting period - next week
-    const ballotStart = addDays(this.weekStart(), 7)
+    const ballotStart = addDays(this.weekStart(), 7);
     // End of balloting period - next next week
     const ballotEnd = addDays(ballotStart, 7);
     const ballots = await this.database.getBallotsByTime(
@@ -49,8 +49,12 @@ export class DManager {
         });
       } catch (error) {
         // If there's an error from conflicting bookings, no issue!
-        if (error instanceof Error && error.message == "Unable to book the entire slot, part/all of it is already booked") {
-          continue
+        if (
+          error instanceof Error &&
+          error.message ==
+            "Unable to book the entire slot, part/all of it is already booked"
+        ) {
+          continue;
         } else {
           throw error;
         }
@@ -86,7 +90,10 @@ export class DManager {
     endTime: string;
   }): Promise<void> {
     const startTime = new Date(booking.startTime);
-    if (startTime >= addDays(this.weekStart(), 7) || startTime < this.weekStart()) {
+    if (
+      startTime >= addDays(this.weekStart(), 7) ||
+      startTime < this.weekStart()
+    ) {
       throw new Error("Booking can only be done for the current week!");
     }
     const res = await this.database.bookSlot(booking);
