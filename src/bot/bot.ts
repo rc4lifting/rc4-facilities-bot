@@ -4,6 +4,8 @@ import { DDatabase } from "../database/d-database";
 import { WizardContext, WizardScene } from "telegraf/typings/scenes";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
+import { GoogleSpreadsheet } from "google-spreadsheet";
+import { LiveUpdater } from "../live_updater/live_updater";
 
 interface Config {
   botToken: string;
@@ -25,22 +27,35 @@ class TelegramBot {
   private bot: Telegraf<MyContext>;
   private verifier: EmailVerifier;
   private database: DDatabase;
+  private updater: LiveUpdater;
 
   constructor(
     botToken: string,
     apiKey: string,
     supabaseUrl: string,
-    supabaseKey: string
+    supabaseKey: string,
+    googleServiceAccountEmail: string,
+    googleServiceAccountPrivateKey: string,
+    googleSpreadsheetId: string
   ) {
     this.bot = new Telegraf<MyContext>(botToken);
     this.verifier = null!;
     this.database = null!;
+    this.updater = null!;
+
     (async (bot) => {
       try {
+        this.updater = new LiveUpdater(
+          googleServiceAccountEmail,
+          googleServiceAccountPrivateKey,
+          googleSpreadsheetId,
+          supabaseUrl,
+          supabaseKey
+        );
+        await this.updater.init();
         await this.initializeDatabase(supabaseUrl, supabaseKey);
         await this.initializeVerifier(apiKey);
         await this.setupCommands();
-
         // Start the bot
         bot
           .launch()
@@ -301,7 +316,7 @@ class TelegramBot {
       ctx.reply("Select a date:", Markup.inlineKeyboard(buttons));
     });
     const config = {
-      n: 5, // Number of days available for booking
+      n: 5, //Number of days available for booking
       timeInterval: 20, // Subdivisions of time in minutes
       startingTime: "08:00", // Starting time
       endingTime: "21:00", // Ending time
@@ -478,7 +493,14 @@ class TelegramBot {
       ctx.reply(
         "We've sent the verification code to your email address. Please run /verify {CODE} to verify your email address."
       );
+
       return;
+    });
+
+    // Command handler: book slot
+    this.bot.command("sheets", async (ctx) => {
+      const telegramId = ctx.from!.id.toString();
+      console.log(await this.updater.test());
     });
   }
 
@@ -501,22 +523,35 @@ interface Config {
   elasticEmailKey: string;
   supabaseUrl: string;
   supabaseKey: string;
+  googleServiceAccountEmail: string;
+  googleServiceAccountPrivateKey: string;
+  googleSpreadsheetId: string;
 }
 
 const configPath = "./config.yaml";
 const configData = fs.readFileSync(configPath, "utf8");
 const config: Config = yaml.load(configData) as Config;
 
-const { botToken, elasticEmailKey, supabaseUrl, supabaseKey } = config;
 //log config
-console.log("botToken: ", botToken);
-console.log("elasticEmailKey: ", elasticEmailKey);
-console.log("supabaseUrl: ", supabaseUrl);
-console.log("supabaseKey: ", supabaseKey);
+console.log("botToken: ", config.botToken);
+console.log("elasticEmailKey: ", config.elasticEmailKey);
+console.log("supabaseUrl: ", config.supabaseUrl);
+console.log("supabaseKey: ", config.supabaseKey);
+console.log("googleServiceAccountEmail: ", config.googleServiceAccountEmail);
+config.googleServiceAccountPrivateKey = config.googleServiceAccountPrivateKey
+  .split(String.raw`\n`)
+  .join("\n");
+console.log(
+  "googleServiceAccountPrivateKey: ",
+  config.googleServiceAccountPrivateKey
+);
 
 const bot = new TelegramBot(
-  botToken,
-  elasticEmailKey,
-  supabaseUrl,
-  supabaseKey
+  config.botToken,
+  config.elasticEmailKey,
+  config.supabaseUrl,
+  config.supabaseKey,
+  config.googleServiceAccountEmail,
+  config.googleServiceAccountPrivateKey,
+  config.googleSpreadsheetId
 );
