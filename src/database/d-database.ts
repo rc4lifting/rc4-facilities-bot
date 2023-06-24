@@ -1,5 +1,10 @@
 import { SupabaseClient, createClient } from "@supabase/supabase-js";
+import { Database } from "../supabase_types";
 import { Result, Ok, Err } from "@sniptt/monads";
+
+export type User = Database["public"]["Tables"]["USERS"]["Row"];
+export type Slot = Database["public"]["Tables"]["SLOTS"]["Row"];
+export type Ballot = Database["public"]["Tables"]["BALLOTS"]["Row"];
 
 /**
  * A class that holds the Supabase SQL database.
@@ -38,7 +43,7 @@ export class DDatabase {
     supabaseKey: string;
   }): Promise<DDatabase> {
     const { supabaseUrl, supabaseKey, ...classOptions } = options;
-    const client = createClient(supabaseUrl, supabaseKey);
+    const client = createClient<Database>(supabaseUrl, supabaseKey);
 
     // Test the given client
     // 1. It must be a valid Supabase client
@@ -422,27 +427,24 @@ export class DDatabase {
       });
   }
 
-  public async deleteUserByTelegramId(telegramId: string): Promise<void> {
-    return this.client
-      .from("USERS")
-      .delete()
-      .eq("telegram_id", telegramId)
-      .then((response) => {
-        if (response.error) {
-          throw new Error(response.error.message);
-        }
-      });
-  }
-
-  public async addBallotToDatabase(
+  public async addBallot(
     telegramId: string,
     startTime: Date,
     endTime: Date
   ): Promise<void> {
+    const userId = await this.getUserId(telegramId);
+    if (userId.isErr()) {
+      // Safe to cast, as we have determined that
+      // this is an error instance,
+      throw userId.unwrapErr();
+    }
+    if (startTime >= endTime) {
+      throw new Error("Start time must strictly be before end time!");
+    }
     return this.client
       .from("BALLOTS")
       .insert({
-        telegram_id: telegramId,
+        user_id: userId.unwrap(),
         time_begin: startTime.toISOString(),
         time_end: endTime.toISOString(),
       })
@@ -450,6 +452,79 @@ export class DDatabase {
         if (response.error) {
           throw new Error(response.error.message);
         }
+      });
+  }
+
+  public async delBallot(ballot: {
+    userTelegramId: string;
+    startTime: string;
+    endTime: string;
+  }): Promise<void> {
+    const userId = await this.getUserId(ballot.userTelegramId);
+    if (userId.isErr()) {
+      // Safe to cast, as we have determined that
+      // this is an error instance,
+      throw userId.unwrapErr();
+    }
+    return this.client
+      .from("BALLOTS")
+      .delete()
+      .eq("user_id", userId.unwrap())
+      .eq("time_begin", ballot.startTime)
+      .eq("time_end", ballot.endTime)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+      });
+  }
+
+  public async getBallotsByTime(
+    startTime: Date,
+    endTime: Date
+  ): Promise<Ballot[]> {
+    return this.client
+      .from("BALLOTS")
+      .select("*")
+      .gte("time_begin", startTime.toISOString())
+      .lt("time_end", endTime.toISOString())
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        return response.data;
+      });
+  }
+
+  public async delBallotsByTime(startTime: Date, endTime: Date): Promise<void> {
+    return this.client
+      .from("BALLOTS")
+      .select()
+      .gte("time_begin", startTime.toISOString())
+      .lt("time_end", endTime.toISOString())
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+      });
+  }
+
+  public async getBallotsFromUser(telegramId: string): Promise<Ballot[]> {
+    const userId = await this.getUserId(telegramId);
+    if (userId.isErr()) {
+      // Safe to cast, as we have determined that
+      // this is an error instance,
+      throw userId.unwrapErr();
+    }
+    return this.client
+      .from("BALLOTS")
+      .select("*")
+      .eq("user_id", userId.unwrap())
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        return response.data;
       });
   }
 }

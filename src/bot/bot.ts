@@ -264,7 +264,7 @@ class TelegramBot {
       const telegramId = ctx.from!.id.toString();
 
       try {
-        await this.database.deleteUserByTelegramId(telegramId);
+        await this.database.delUser(telegramId);
         ctx.reply("You have been unregistered and your data has been deleted.");
       } catch (error) {
         console.error("Error unregistering user:", error);
@@ -403,7 +403,7 @@ class TelegramBot {
       const start = new Date(`${date}T${startTime}:00`);
       const end = new Date(`${date}T${endTime}:00`);
       try {
-        this.database.addBallotToDatabase(ctx.from!.id.toString(), start, end);
+        this.database.addBallot(ctx.from!.id.toString(), start, end);
         ctx.reply("Ballot added to database.");
       } catch (error) {
         console.error("Error adding ballot to database:", error);
