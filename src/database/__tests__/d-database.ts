@@ -545,8 +545,27 @@ describe("Dplatform Database", () => {
       });
     });
     describe("addBallot method", () => {
+      // Book a slot. Test user shouldn't be able to book this slot.
+      beforeAll(async () => {
+        // Create another user to test conflicting ballots
+        await test_database.addUser({
+          name: "test2",
+          telegramId: "test2",
+          nusEmail: "test",
+          room: "test",
+        });
+        // For our user, create a ballot that he has already balloted
+        await test_client.from("BALLOTS").insert({
+          user_id: test_id,
+          telegram_id: "test",
+          time_begin: new Date("2000-01-01T12:00:00+0000"),
+          time_end: new Date("2000-01-01T12:30:00+0000"),
+        });
+      });
       afterAll(async () => {
         await test_client.from("BALLOTS").delete().eq("user_id", test_id);
+        await test_client.from("BALLOTS").delete().eq("telegram_id", "test2");
+        await test_client.from("USERS").delete().eq("telegram_id", "test2");
       });
       it("ballots a slot", async () => {
         return expect(
@@ -558,6 +577,28 @@ describe("Dplatform Database", () => {
             )
             .then((result) => "ok")
         ).resolves.toEqual("ok");
+      });
+      it("other user can also ballot a slot balloted by someone else", async () => {
+        return expect(
+          test_database
+            .addBallot(
+              "test2",
+              new Date("2000-01-01T12:00:00+0000"),
+              new Date("2000-01-01T13:00:00+0000")
+            )
+            .then((result) => "ok")
+        ).resolves.toEqual("ok");
+      });
+      it("is unable to ballot a slot they has already balloted", async () => {
+        return expect(
+          test_database
+            .addBallot(
+              "test",
+              new Date("2000-01-01T12:20:00+0000"),
+              new Date("2000-01-01T12:50:00+0000")
+            )
+            .then((result) => "ok")
+        ).rejects.toThrowError();
       });
       it("returns error if startTime > endTime", async () => {
         return expect(
