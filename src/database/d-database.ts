@@ -446,6 +446,7 @@ export class DDatabase {
       .insert({
         telegram_id: telegramId,
         user_id: userId.unwrap(),
+        telegram_id: telegramId,
         time_begin: startTime.toISOString(),
         time_end: endTime.toISOString(),
       })
