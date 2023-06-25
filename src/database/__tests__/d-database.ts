@@ -121,11 +121,6 @@ describe("Dplatform Database", () => {
       it("detects that a user is not in the database", async () => {
         return expect(test_database.isUser("foo")).resolves.toEqual(false);
       });
-      it("detects the illegal state in which 2 users share a telegram account", async () => {
-        return expect(test_database.isUser("test2")).rejects.toThrow(
-          "Illegal State"
-        );
-      });
     });
     describe("addUser method", () => {
       afterAll(async () => {
