@@ -445,6 +445,7 @@ export class DDatabase {
       .from("BALLOTS")
       .insert({
         user_id: userId.unwrap(),
+        telegram_id: telegramId,
         time_begin: startTime.toISOString(),
         time_end: endTime.toISOString(),
       })
