@@ -469,11 +469,12 @@ class TelegramBot {
       const start = new Date(`${date}T${startTime}:00`);
       const end = new Date(`${date}T${endTime}:00`);
       try {
-        // this.database.addBallot(ctx.from!.id.toString(), start, end);
+        await this.database.addBallot(ctx.from!.id.toString(), start, end);
         // log the dates
         console.log("start: ", start);
         console.log("end: ", end);
-        await this.manager.ballot(ctx.from!.id.toString(), start, end);
+        //TODO: use the ballot function
+        // await this.manager.ballot(ctx.from!.id.toString(), start, end);
         ctx.reply("Ballot added to database.");
       } catch (error) {
         console.error("Error adding ballot to database:", error);

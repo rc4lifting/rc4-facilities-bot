@@ -444,6 +444,7 @@ export class DDatabase {
     return this.client
       .from("BALLOTS")
       .insert({
+        telegram_id: telegramId,
         user_id: userId.unwrap(),
         time_begin: startTime.toISOString(),
         time_end: endTime.toISOString(),
