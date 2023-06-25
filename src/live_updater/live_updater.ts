@@ -38,12 +38,12 @@ export class LiveUpdater {
     console.log("loaded!");
   }
 
-  async test(): Promise<any> {
-    console.log("settle");
-    //return this.db.getAllBookedSlots();
+  // async test(): Promise<any> {
+  // console.log("settle");
+  //return this.db.getAllBookedSlots();
 
-    return this.updateSheets();
-  }
+  // return this.updateSheets();
+  // }
 
   async updateSheets() {
     //await this.doc.loadInfo();
