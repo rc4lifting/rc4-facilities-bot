@@ -427,16 +427,58 @@ export class DDatabase {
       });
   }
 
+  /**
+   * Determines whether a period of time is not balloted by a user;
+   * ie. a user may ballot the entirety of the queried
+   * time
+   *
+   * @param startTime When the query starts checking from
+   * @param endTime When the query stops checking from
+   * @returns Whether the entire time is free
+   * @throws Error on malformed input (startTime >= endTime)
+   *         Error on unexpected database call failure
+   */
+  public async isBalloted(
+    telegramId: string,
+    startTime: string,
+    endTime: string
+  ): Promise<boolean> {
+    if (!this.validateTime(startTime, endTime)) {
+      throw new Error("Start time must strictly be before end time!");
+    }
+    return this.client
+      .from("BALLOTS")
+      .select("*")
+      .lt("time_begin", endTime)
+      .gt("time_end", startTime)
+      .eq("telegram_id", telegramId)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        return response.data;
+      })
+      .then((data) => data.length > 0);
+  }
+
   public async addBallot(
     telegramId: string,
     startTime: Date,
     endTime: Date
   ): Promise<void> {
     const userId = await this.getUserId(telegramId);
+    const balloted = await this.isBalloted(
+      telegramId,
+      startTime.toISOString(),
+      endTime.toISOString()
+    );
     if (userId.isErr()) {
       // Safe to cast, as we have determined that
       // this is an error instance,
       throw userId.unwrapErr();
+    }
+    if (balloted) {
+      throw new Error("Slot is already balloted!");
     }
     if (startTime >= endTime) {
       throw new Error("Start time must strictly be before end time!");
