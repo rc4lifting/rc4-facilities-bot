@@ -162,7 +162,7 @@ class TelegramBot {
         /register - Register for the bot
         /verify - Verify your email address
         /unregister - Unregister and delete your data
-        /book - Ballot for a slot
+        /ballot - Ballot for a slot
         /view_sheets - View the spreadsheet for live updates on booking
   
         To begin registration, use the /register command.
@@ -337,8 +337,8 @@ class TelegramBot {
         ctx.reply("An error occurred while unregistering.");
       }
     });
-    // Command handler: book slot
-    this.bot.command("book", async (ctx) => {
+    // Command handler: ballot slot
+    this.bot.command("ballot", async (ctx) => {
       const telegramId = ctx.from!.id.toString();
       //check if registered
       const isRegistered = await this.database.isRegistered(telegramId);
@@ -367,7 +367,7 @@ class TelegramBot {
       ctx.reply("Select a date:", Markup.inlineKeyboard(buttons));
     });
     const config = {
-      n: 5, //Number of days available for booking
+      n: 7, //Number of days available for booking
       timeInterval: 20, // Subdivisions of time in minutes
       startingTime: "08:00", // Starting time
       endingTime: "21:00", // Ending time
@@ -393,10 +393,12 @@ class TelegramBot {
 
     // Helper function to generate the dates for the next n days
     const generateDates = (n: number) => {
+      //
+      const start_date = new Date().getDate() + 7;
       const dates = Array<string>();
       for (let i = 0; i < n; i++) {
         const date = new Date();
-        date.setDate(date.getDate() + i);
+        date.setDate(start_date + i);
         dates.push(date.toISOString().slice(0, 10));
       }
       return dates;
@@ -469,16 +471,145 @@ class TelegramBot {
       const start = new Date(`${date}T${startTime}:00`);
       const end = new Date(`${date}T${endTime}:00`);
       try {
-        await this.database.addBallot(ctx.from!.id.toString(), start, end);
+        // await this.database.addBallot(ctx.from!.id.toString(), start, end);
         // log the dates
         console.log("start: ", start);
         console.log("end: ", end);
         //TODO: use the ballot function
-        // await this.manager.ballot(ctx.from!.id.toString(), start, end);
+        await this.manager.ballot(ctx.from!.id.toString(), start, end);
         ctx.reply("Ballot added to database.");
       } catch (error) {
         console.error("Error adding ballot to database:", error);
         ctx.reply("An error occurred while adding ballot to database.");
+        ctx.reply("Error is " + error);
+        return;
+      }
+    });
+
+    // Command handler: book slot
+    this.bot.command("book", async (ctx) => {
+      const telegramId = ctx.from!.id.toString();
+      //check if registered
+      const isRegistered = await this.database.isRegistered(telegramId);
+      if (!isRegistered) {
+        ctx.reply("You are not registered. Please run /register to register.");
+        return;
+      }
+      //check if verified
+      const isVerified = await this.database.isVerified(telegramId);
+      if (!isVerified) {
+        ctx.reply(
+          "You are not verified. Please run /get_code to get a verification code sent to your email address."
+        );
+        return;
+      }
+      const dates = generateDatesForBook(config.n);
+      const buttons = dates.map((date) => {
+        const [year, month, day] = date.split("-");
+        const formattedDate = new Date(date).toLocaleDateString("en-GB", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        });
+        return [Markup.button.callback(formattedDate, `DATE_BOOK ${date}`)];
+      });
+      ctx.reply("Select a date:", Markup.inlineKeyboard(buttons));
+    });
+
+    // Helper function to generate the dates for the next n days
+    const generateDatesForBook = (n: number) => {
+      const start_date = new Date().getDate(); // start from the current day
+      const dates = Array<string>();
+      for (let i = 0; i < n; i++) {
+        const date = new Date();
+        date.setDate(start_date + i);
+        dates.push(date.toISOString().slice(0, 10));
+      }
+      return dates;
+    };
+
+    this.bot.action(/^DATE_BOOK (.+)/, (ctx) => {
+      // Remaining code as is, but change `START_TIME` to `START_TIME_BOOK`
+      const date = ctx.match![1];
+
+      const startTime = new Date(`2023-01-01T${config.startingTime}:00`);
+      const endTime = new Date(`2023-01-01T${config.endingTime}:00`);
+
+      const slots = generateTimeSlots(startTime, endTime, config.timeInterval);
+      /*
+      const buttons = slots.map((slot) =>
+        Markup.button.callback(slot, `START_TIME ${date} ${slot}`)
+      );
+      */
+      const buttons = [];
+      for (let i = 0; i < config.rows; i++) {
+        const row = [];
+        for (let j = 0; j < config.columns; j++) {
+          const index = i * config.columns + j;
+          if (index < slots.length) {
+            const slot = slots[index];
+            row.push(
+              Markup.button.callback(slot, `START_TIME_BOOK ${date} ${slot}`)
+            );
+          }
+        }
+        buttons.push(row);
+      }
+
+      ctx.editMessageText(
+        `You selected ${date}. Select a starting time:`,
+        Markup.inlineKeyboard(buttons)
+      );
+    });
+
+    this.bot.action(/^START_TIME_BOOK (.+) (.+)/, (ctx) => {
+      // Remaining code as is, but change `END_TIME` to `END_TIME_BOOK`
+      const date = ctx.match![1];
+      const startTime = ctx.match![2];
+
+      const start = new Date(`2023-01-01T${startTime}:00`);
+      start.setMinutes(start.getMinutes() + config.timeInterval);
+      const end = new Date(`2023-01-01T${startTime}:00`);
+      end.setMinutes(end.getMinutes() + config.maxLength);
+
+      const slots = generateTimeSlots(start, end, config.timeInterval);
+      const buttons = slots.map((slot) =>
+        Markup.button.callback(
+          slot,
+          `END_TIME_BOOK ${date} ${startTime} ${slot}`
+        )
+      );
+
+      ctx.editMessageText(
+        `You selected ${startTime} as starting time. Select an ending time:`,
+        Markup.inlineKeyboard(buttons)
+      );
+    });
+
+    this.bot.action(/^END_TIME_BOOK (.+) (.+) (.+)/, async (ctx) => {
+      // Remaining code as is
+      const date = ctx.match![1];
+      const startTime = ctx.match![2];
+      const endTime = ctx.match![3];
+
+      ctx.editMessageText(
+        `You selected ${endTime} as ending time. Your booking is from ${startTime} to ${endTime} on ${date}.`
+      );
+      //add to database
+      const start = new Date(`${date}T${startTime}:00`);
+      const end = new Date(`${date}T${endTime}:00`);
+      try {
+        console.log("start: ", start);
+        console.log("end: ", end);
+        await this.manager.book({
+          userTelegramId: ctx.from!.id.toString(),
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+        });
+        ctx.reply("Booking added to database.");
+      } catch (error) {
+        console.error("Error adding booking to database:", error);
+        ctx.reply("An error occurred while adding booking to database.");
         ctx.reply("Error is " + error);
         return;
       }
