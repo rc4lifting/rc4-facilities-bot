@@ -18,6 +18,7 @@
     "prepare": "husky install"
   },
   "devDependencies": {
+    "@types/cron": "^2.0.1",
     "@types/google-spreadsheet": "^3.3.2",
     "@types/jest": "^29.5.1",
     "@types/js-yaml": "^4.0.5",
@@ -38,8 +39,8 @@
     "@sniptt/monads": "^0.5.10",
     "@supabase/supabase-js": "^2.26.0",
     "axios": "^1.4.0",
-    "date-fns": "^2.30.0",
     "cron": "^2.3.1",
+    "date-fns": "^2.30.0",
     "google-spreadsheet": "^3.3.0",
     "js-yaml": "^4.1.0",
     "telegraf": "^4.12.2"

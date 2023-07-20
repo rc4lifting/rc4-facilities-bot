@@ -6,6 +6,8 @@ import * as fs from "fs";
 import * as yaml from "js-yaml";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { LiveUpdater } from "../live_updater/live_updater";
+import { CronJob } from "cron";
+import { DManager } from "../dmanager";
 
 interface Config {
   botToken: string;
@@ -28,6 +30,7 @@ class TelegramBot {
   private verifier: EmailVerifier;
   private database: DDatabase;
   private updater: LiveUpdater;
+  private manager: DManager;
 
   constructor(
     botToken: string,
@@ -42,6 +45,7 @@ class TelegramBot {
     this.verifier = null!;
     this.database = null!;
     this.updater = null!;
+    this.manager = null!;
 
     (async (bot) => {
       try {
@@ -52,10 +56,13 @@ class TelegramBot {
           supabaseUrl,
           supabaseKey
         );
+        //TODO initialise this better
+        this.database = null!;
         await this.updater.init();
         await this.initializeDatabase(supabaseUrl, supabaseKey);
         await this.initializeVerifier(apiKey);
         await this.setupCommands();
+        this.manager = new DManager(this.database);
         // Start the bot
         bot
           .launch()
@@ -70,6 +77,37 @@ class TelegramBot {
         console.error("Error during initialization:", error);
       }
     })(this.bot);
+
+    const job = new CronJob(
+      "0 0 12 * * 0",
+      async () => {
+        try {
+          this.manager.resolve();
+        } catch (err) {
+          console.error(err);
+        }
+      },
+      null,
+      true,
+      "Asia/Singapore"
+    );
+
+    const job2 = new CronJob(
+      "*/15 * * * *",
+      async () => {
+        try {
+          this.updater.updateSheets();
+        } catch (err) {
+          console.error(err);
+        }
+      },
+      null,
+      true,
+      "Asia/Singapore"
+    );
+
+    job.start();
+    job2.start;
   }
 
   private async initializeDatabase(
@@ -124,6 +162,8 @@ class TelegramBot {
         /register - Register for the bot
         /verify - Verify your email address
         /unregister - Unregister and delete your data
+        /ballot - Ballot for a slot
+        /view_sheets - View the spreadsheet for live updates on booking
   
         To begin registration, use the /register command.
         Follow the instructions provided by the bot to complete the registration process.
@@ -133,9 +173,19 @@ class TelegramBot {
       ctx.reply(helpMessage);
     });
 
+    //make a /sheets command that gives this link https://docs.google.com/spreadsheets/d/1FdeYnZ1qHDMvqq58ZGInVafLmzI6rpnxKLsB2sAqwwc/edit#gid=0
+    this.bot.command("view_sheets", (ctx) => {
+      const sheetsMessage = `
+        This is the link to the spreadsheet:
+        https://docs.google.com/spreadsheets/d/1FdeYnZ1qHDMvqq58ZGInVafLmzI6rpnxKLsB2sAqwwc/edit#gid=0
+      `;
+      ctx.reply(sheetsMessage);
+    });
+
     // https://github.com/telegraf/telegraf/issues/705
 
     const nameStepHandler = new Composer<MyContext>();
+
     nameStepHandler.on("text", async (ctx) => {
       if (ctx.message!.text.length < 3) {
         console.log("name is invalid");
@@ -182,13 +232,14 @@ class TelegramBot {
       const user = {
         name: ctx.scene.session.name,
         telegramId: telegramId,
+
         nusEmail: ctx.scene.session.email,
         room: ctx.scene.session.room_no,
       };
       await this.database.addUser(user);
       await ctx.reply(confirm_string);
       await ctx.reply(
-        "Please run /getCode to get a verification code sent your email address and finish your registration."
+        "Please run /get_code to get a verification code sent your email address and finish your registration."
       );
       return ctx.scene.leave();
     });
@@ -212,7 +263,7 @@ class TelegramBot {
             await ctx.reply("You have also already verified your email.");
           } else {
             await ctx.reply(
-              "However, you have not verified your email. Please run /getCode to get a verification code for your email address."
+              "However, you have not verified your email. Please run /get_code to get a verification code for your email address."
             );
           }
           return ctx.scene.leave();
@@ -256,7 +307,7 @@ class TelegramBot {
       );
       if (!storedVerificationCode) {
         ctx.reply(
-          "No verification code found. Please generate a new verification code via /getCode."
+          "No verification code found. Please generate a new verification code via /get_code."
         );
         return;
       }
@@ -286,8 +337,8 @@ class TelegramBot {
         ctx.reply("An error occurred while unregistering.");
       }
     });
-    // Command handler: book slot
-    this.bot.command("book", async (ctx) => {
+    // Command handler: ballot slot
+    this.bot.command("ballot", async (ctx) => {
       const telegramId = ctx.from!.id.toString();
       //check if registered
       const isRegistered = await this.database.isRegistered(telegramId);
@@ -299,7 +350,7 @@ class TelegramBot {
       const isVerified = await this.database.isVerified(telegramId);
       if (!isVerified) {
         ctx.reply(
-          "You are not verified. Please run /getCode to get a verification code sent to your email address."
+          "You are not verified. Please run /get_code to get a verification code sent to your email address."
         );
         return;
       }
@@ -316,7 +367,7 @@ class TelegramBot {
       ctx.reply("Select a date:", Markup.inlineKeyboard(buttons));
     });
     const config = {
-      n: 5, //Number of days available for booking
+      n: 7, //Number of days available for booking
       timeInterval: 20, // Subdivisions of time in minutes
       startingTime: "08:00", // Starting time
       endingTime: "21:00", // Ending time
@@ -342,10 +393,12 @@ class TelegramBot {
 
     // Helper function to generate the dates for the next n days
     const generateDates = (n: number) => {
+      //
+      const start_date = new Date().getDate() + 7;
       const dates = Array<string>();
       for (let i = 0; i < n; i++) {
         const date = new Date();
-        date.setDate(date.getDate() + i);
+        date.setDate(start_date + i);
         dates.push(date.toISOString().slice(0, 10));
       }
       return dates;
@@ -406,7 +459,7 @@ class TelegramBot {
       );
     });
 
-    this.bot.action(/^END_TIME (.+) (.+) (.+)/, (ctx) => {
+    this.bot.action(/^END_TIME (.+) (.+) (.+)/, async (ctx) => {
       const date = ctx.match![1];
       const startTime = ctx.match![2];
       const endTime = ctx.match![3];
@@ -418,17 +471,152 @@ class TelegramBot {
       const start = new Date(`${date}T${startTime}:00`);
       const end = new Date(`${date}T${endTime}:00`);
       try {
-        this.database.addBallot(ctx.from!.id.toString(), start, end);
+        // await this.database.addBallot(ctx.from!.id.toString(), start, end);
+        // log the dates
+        console.log("start: ", start);
+        console.log("end: ", end);
+        //TODO: use the ballot function
+        await this.manager.ballot(ctx.from!.id.toString(), start, end);
         ctx.reply("Ballot added to database.");
       } catch (error) {
         console.error("Error adding ballot to database:", error);
         ctx.reply("An error occurred while adding ballot to database.");
+        ctx.reply("Error is " + error);
         return;
       }
     });
 
-    //getCode
-    this.bot.command("getCode", async (ctx) => {
+    // Command handler: book slot
+    this.bot.command("book", async (ctx) => {
+      const telegramId = ctx.from!.id.toString();
+      //check if registered
+      const isRegistered = await this.database.isRegistered(telegramId);
+      if (!isRegistered) {
+        ctx.reply("You are not registered. Please run /register to register.");
+        return;
+      }
+      //check if verified
+      const isVerified = await this.database.isVerified(telegramId);
+      if (!isVerified) {
+        ctx.reply(
+          "You are not verified. Please run /get_code to get a verification code sent to your email address."
+        );
+        return;
+      }
+      const dates = generateDatesForBook(config.n);
+      const buttons = dates.map((date) => {
+        const [year, month, day] = date.split("-");
+        const formattedDate = new Date(date).toLocaleDateString("en-GB", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        });
+        return [Markup.button.callback(formattedDate, `DATE_BOOK ${date}`)];
+      });
+      ctx.reply("Select a date:", Markup.inlineKeyboard(buttons));
+    });
+
+    // Helper function to generate the dates for the next n days
+    const generateDatesForBook = (n: number) => {
+      const start_date = new Date().getDate(); // start from the current day
+      const dates = Array<string>();
+      for (let i = 0; i < n; i++) {
+        const date = new Date();
+        date.setDate(start_date + i);
+        dates.push(date.toISOString().slice(0, 10));
+      }
+      return dates;
+    };
+
+    this.bot.action(/^DATE_BOOK (.+)/, (ctx) => {
+      // Remaining code as is, but change `START_TIME` to `START_TIME_BOOK`
+      const date = ctx.match![1];
+
+      const startTime = new Date(`2023-01-01T${config.startingTime}:00`);
+      const endTime = new Date(`2023-01-01T${config.endingTime}:00`);
+
+      const slots = generateTimeSlots(startTime, endTime, config.timeInterval);
+      /*
+      const buttons = slots.map((slot) =>
+        Markup.button.callback(slot, `START_TIME ${date} ${slot}`)
+      );
+      */
+      const buttons = [];
+      for (let i = 0; i < config.rows; i++) {
+        const row = [];
+        for (let j = 0; j < config.columns; j++) {
+          const index = i * config.columns + j;
+          if (index < slots.length) {
+            const slot = slots[index];
+            row.push(
+              Markup.button.callback(slot, `START_TIME_BOOK ${date} ${slot}`)
+            );
+          }
+        }
+        buttons.push(row);
+      }
+
+      ctx.editMessageText(
+        `You selected ${date}. Select a starting time:`,
+        Markup.inlineKeyboard(buttons)
+      );
+    });
+
+    this.bot.action(/^START_TIME_BOOK (.+) (.+)/, (ctx) => {
+      // Remaining code as is, but change `END_TIME` to `END_TIME_BOOK`
+      const date = ctx.match![1];
+      const startTime = ctx.match![2];
+
+      const start = new Date(`2023-01-01T${startTime}:00`);
+      start.setMinutes(start.getMinutes() + config.timeInterval);
+      const end = new Date(`2023-01-01T${startTime}:00`);
+      end.setMinutes(end.getMinutes() + config.maxLength);
+
+      const slots = generateTimeSlots(start, end, config.timeInterval);
+      const buttons = slots.map((slot) =>
+        Markup.button.callback(
+          slot,
+          `END_TIME_BOOK ${date} ${startTime} ${slot}`
+        )
+      );
+
+      ctx.editMessageText(
+        `You selected ${startTime} as starting time. Select an ending time:`,
+        Markup.inlineKeyboard(buttons)
+      );
+    });
+
+    this.bot.action(/^END_TIME_BOOK (.+) (.+) (.+)/, async (ctx) => {
+      // Remaining code as is
+      const date = ctx.match![1];
+      const startTime = ctx.match![2];
+      const endTime = ctx.match![3];
+
+      ctx.editMessageText(
+        `You selected ${endTime} as ending time. Your booking is from ${startTime} to ${endTime} on ${date}.`
+      );
+      //add to database
+      const start = new Date(`${date}T${startTime}:00`);
+      const end = new Date(`${date}T${endTime}:00`);
+      try {
+        console.log("start: ", start);
+        console.log("end: ", end);
+        await this.manager.book({
+          userTelegramId: ctx.from!.id.toString(),
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+        });
+        ctx.reply("Booking added to database.");
+      } catch (error) {
+        console.error("Error adding booking to database:", error);
+        ctx.reply("An error occurred while adding booking to database.");
+        ctx.reply("Error is " + error);
+        return;
+      }
+    });
+
+    //get_code
+    this.bot.command("get_code", async (ctx) => {
       // Check if the user is already verified
       //const isVerified = await this.database.isVerified(telegramId);
       //get telegramId from context
@@ -498,10 +686,10 @@ class TelegramBot {
     });
 
     // Command handler: book slot
-    this.bot.command("sheets", async (ctx) => {
-      const telegramId = ctx.from!.id.toString();
-      console.log(await this.updater.test());
-    });
+    // this.bot.command("sheets", async (ctx) => {
+    // const telegramId = ctx.from!.id.toString();
+    // console.log(await this.updater.test());
+    // });
   }
 
   private async checkAuthorization(telegramId: string): Promise<boolean> {
