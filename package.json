@@ -38,11 +38,13 @@
   "dependencies": {
     "@sniptt/monads": "^0.5.10",
     "@supabase/supabase-js": "^2.26.0",
+    "@types/plotly.js": "^2.12.24",
     "axios": "^1.4.0",
     "cron": "^2.3.1",
     "date-fns": "^2.30.0",
     "google-spreadsheet": "^3.3.0",
     "js-yaml": "^4.1.0",
+    "plotly.js": "^2.24.3",
     "telegraf": "^4.12.2"
   }
 }
