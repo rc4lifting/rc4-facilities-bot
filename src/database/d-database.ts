@@ -312,24 +312,42 @@ export class DDatabase {
    * @returns A result instance representing set
    *          of all bookings or an error if query fails
    */
-  public async getSlots(
+  public async getSlotsByUser(
     telegramId: string
-  ): Promise<Result<{ time_begin: string; time_end: string }[], Error>> {
+  ): Promise<Slot[]> {
     const userId = await this.getUserId(telegramId);
     if (userId.isErr()) {
       // Safe to cast, as we have determined that
       // this is an error instance,
-      return userId as Result<never, Error>;
+      throw userId.unwrapErr();
     }
     return this.client
       .from("SLOTS")
-      .select("time_begin, time_end")
+      .select()
       .eq("booked_by", userId.unwrap())
-      .then((response) =>
-        response.error
-          ? Err(new Error(response.error.message))
-          : Ok(response.data)
-      );
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        return response.data;
+      });
+  }
+
+  public async getSlotsByTime(
+    startTime: Date,
+    endTime: Date
+  ): Promise<Slot[]> {
+    return this.client
+      .from("SLOTS")
+      .select("*")
+      .gte("time_begin", startTime.toISOString())
+      .lt("time_end", endTime.toISOString())
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        return response.data;
+      });
   }
 
   public async getUserEmail(telegramId: string): Promise<string | null> {
@@ -488,7 +506,6 @@ export class DDatabase {
       .insert({
         telegram_id: telegramId,
         user_id: userId.unwrap(),
-        telegram_id: telegramId,
         time_begin: startTime.toISOString(),
         time_end: endTime.toISOString(),
       })
