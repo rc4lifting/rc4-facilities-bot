@@ -1,7 +1,6 @@
-import { start } from "repl";
 import { DDatabase, Ballot } from "../database";
 import { shuffle } from "./algorithms";
-import { previousSunday, addDays } from "date-fns";
+import { weekStart, addDays } from "../timeutils"; 
 
 export class DManager {
   private database: DDatabase;
@@ -10,26 +9,11 @@ export class DManager {
   }
 
   /**
-   * Using the current time, get the start of what we define
-   * as the "previous week" - Monday to Sunday.
-   *
-   * @returns The start of the current week, Monday.
-   */
-  private weekStart(): Date {
-    const start = previousSunday(Date.now());
-    start.setHours(0);
-    start.setMinutes(0);
-    start.setSeconds(0);
-    start.setMilliseconds(0);
-    return addDays(start, 1);
-  }
-
-  /**
    * Resolves the next week of ballots.
    */
   public async resolve(): Promise<void> {
     // Start of balloting period - next week
-    const ballotStart = addDays(this.weekStart(), 7);
+    const ballotStart = addDays(weekStart(), 7);
     // End of balloting period - next next week
     const ballotEnd = addDays(ballotStart, 7);
     const ballots = await this.database.getBallotsByTime(
@@ -72,8 +56,8 @@ export class DManager {
     endTime: Date
   ): Promise<void> {
     if (
-      startTime < addDays(this.weekStart(), 7) ||
-      startTime >= addDays(this.weekStart(), 14)
+      startTime < addDays(weekStart(), 7) ||
+      startTime >= addDays(weekStart(), 14)
     ) {
       throw new Error("Balloting can only be done for the next week!");
     }
@@ -91,8 +75,8 @@ export class DManager {
   }): Promise<void> {
     const startTime = new Date(booking.startTime);
     if (
-      startTime >= addDays(this.weekStart(), 7) ||
-      startTime < this.weekStart()
+      startTime >= addDays(weekStart(), 7) ||
+      startTime < weekStart()
     ) {
       throw new Error("Booking can only be done for the current week!");
     }
