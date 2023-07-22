@@ -82,7 +82,7 @@ class TelegramBot {
       "0 0 12 * * 0",
       async () => {
         try {
-          this.manager.resolve();
+          await this.manager.resolve();
         } catch (err) {
           console.error(err);
         }
@@ -96,7 +96,7 @@ class TelegramBot {
       "*/15 * * * *",
       async () => {
         try {
-          this.updater.updateSheets();
+          await this.updater.updateSheets();
         } catch (err) {
           console.error(err);
         }
