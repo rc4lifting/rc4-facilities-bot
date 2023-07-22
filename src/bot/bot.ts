@@ -163,7 +163,8 @@ class TelegramBot {
         /register - Register for the bot
         /verify - Verify your email address
         /unregister - Unregister and delete your data
-        /ballot - Ballot for a slot
+        /book - Book a slot for the current Monday - Sunday cycle
+        /ballot - Ballot for a slot in the coming Monday - Sunday cycle
         /view_sheets - View the spreadsheet for live updates on booking
   
         To begin registration, use the /register command.
@@ -321,6 +322,22 @@ class TelegramBot {
       try {
         await this.database.markUserAsVerified(telegramId);
         ctx.reply("Email address verified successfully!");
+        const helpMessage = `
+        Once again, here are the available commands:
+  
+        /start - Start the bot
+        /help - Show the help message
+        /register - Register for the bot
+        /verify - Verify your email address
+        /unregister - Unregister and delete your data
+        /book - Book a slot for the current Monday - Sunday cycle
+        /ballot - Ballot for a slot in the coming Monday - Sunday cycle
+        /view_sheets - View the spreadsheet for live updates on booking
+  
+        You have already been registered and verified.
+        You can also use the /unregister command to unregister from the bot and delete your data.
+      `;
+        ctx.reply(helpMessage);
       } catch (error) {
         console.error("Error marking user as verified:", error);
         ctx.reply("An error occurred while marking the user as verified.");
