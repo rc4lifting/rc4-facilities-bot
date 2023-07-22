@@ -1,6 +1,7 @@
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { DDatabase, Slot, Ballot } from "../database/";
 import { weekStart, addDays } from "../timeutils";
+import config from "../config/config";
 export class LiveUpdater {
   private doc!: GoogleSpreadsheet;
   private db!: DDatabase;
@@ -51,10 +52,6 @@ export class LiveUpdater {
     await this.doc.updateProperties({
       title: `RC4 Gym Booking (Last updated at ${new Date()})`,
     });
-    const startingTime = "08:00"; // Starting time
-    const endingTime = "21:00"; // Ending time
-    const timeInterval = 20; // Time interval
-    const daysToPrint = 7; // Time interval
 
     const timeSlots = await this.db.getAllBookedSlots();
     const ballots = await this.db.getAllBallots();
@@ -67,16 +64,16 @@ export class LiveUpdater {
 
     // Calculate the total number of intervals per day
     const intervalsPerDay =
-      (new Date(`1970-01-01T${endingTime}Z`).getTime() -
-        new Date(`1970-01-01T${startingTime}Z`).getTime()) /
+      (new Date(`1970-01-01T${config.endingTime}Z`).getTime() -
+        new Date(`1970-01-01T${config.startingTime}Z`).getTime()) /
       60000 /
-      timeInterval;
+      config.timeInterval;
 
     // Prepare the header row
     const headerRow = ["TIME SLOT"];
     const savedDate = weekStart();
     //let headerRow: { [key: string]: string } = { "TIME SLOT": "" };
-    for (let i = 0; i < daysToPrint; i++) {
+    for (let i = 0; i < config.daysToPrint; i++) {
       const currentDate = new Date(savedDate);
       currentDate.setDate(currentDate.getDate() + i);
 
@@ -97,12 +94,12 @@ export class LiveUpdater {
     for (let j = 0; j < intervalsPerDay; j++) {
       // Calculate the time for this interval
       const startTimeForThisInterval = new Date(
-        new Date(`1970-01-01T${startingTime}Z`).getTime() +
-          j * timeInterval * 60000
+        new Date(`1970-01-01T${config.startingTime}Z`).getTime() +
+          j * config.timeInterval * 60000
       );
       const endTimeForThisInterval = new Date(
-        new Date(`1970-01-01T${startingTime}Z`).getTime() +
-          (j + 1) * timeInterval * 60000
+        new Date(`1970-01-01T${config.startingTime}Z`).getTime() +
+          (j + 1) * config.timeInterval * 60000
       );
 
       // Format the time for this interval as HH:MM - HH:MM
@@ -116,7 +113,7 @@ export class LiveUpdater {
       };
       console.log(timeForThisIntervalString);
 
-      for (let i = 0; i < daysToPrint; i++) {
+      for (let i = 0; i < config.daysToPrint; i++) {
         const currentDate = new Date(savedDate);
         currentDate.setDate(currentDate.getDate() + i);
         // Get the current date in YYYY-MM-DD format
@@ -180,7 +177,7 @@ export class LiveUpdater {
     const bHeaderRow = ["TIME SLOT"];
     const bSavedDate = addDays(weekStart(), 7);
     //let headerRow: { [key: string]: string } = { "TIME SLOT": "" };
-    for (let i = 0; i < daysToPrint; i++) {
+    for (let i = 0; i < config.daysToPrint; i++) {
       const currentDate = new Date(bSavedDate);
       currentDate.setDate(currentDate.getDate() + i);
 
@@ -199,12 +196,12 @@ export class LiveUpdater {
     for (let j = 0; j < intervalsPerDay; j++) {
       // Calculate the time for this interval
       const startTimeForThisInterval = new Date(
-        new Date(`1970-01-01T${startingTime}Z`).getTime() +
-          j * timeInterval * 60000
+        new Date(`1970-01-01T${config.startingTime}Z`).getTime() +
+          j * config.timeInterval * 60000
       );
       const endTimeForThisInterval = new Date(
-        new Date(`1970-01-01T${startingTime}Z`).getTime() +
-          (j + 1) * timeInterval * 60000
+        new Date(`1970-01-01T${config.startingTime}Z`).getTime() +
+          (j + 1) * config.timeInterval * 60000
       );
 
       // Format the time for this interval as HH:MM - HH:MM
@@ -218,7 +215,7 @@ export class LiveUpdater {
       };
       console.log(timeForThisIntervalString);
 
-      for (let i = 0; i < daysToPrint; i++) {
+      for (let i = 0; i < config.daysToPrint; i++) {
         const currentDate = new Date(savedDate);
         currentDate.setDate(currentDate.getDate() + i);
         // Get the current date in YYYY-MM-DD format

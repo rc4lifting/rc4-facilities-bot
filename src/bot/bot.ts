@@ -9,13 +9,7 @@ import { GoogleSpreadsheet } from "google-spreadsheet";
 import { LiveUpdater } from "../live_updater/live_updater";
 import { CronJob } from "cron";
 import { DManager } from "../dmanager";
-
-interface Config {
-  botToken: string;
-  elasticEmailKey: string;
-  supabaseUrl: string;
-  supabaseKey: string;
-}
+import Config from "../config/config";
 
 interface MyWizardSession extends Scenes.WizardSessionData {
   // will be available under `ctx.scene.session.myWizardSessionProp`
@@ -384,15 +378,16 @@ class TelegramBot {
       });
       ctx.reply("Select a date:", Markup.inlineKeyboard(buttons));
     });
-    const config = {
-      n: 7, //Number of days available for booking
-      timeInterval: 20, // Subdivisions of time in minutes
-      startingTime: "08:00", // Starting time
-      endingTime: "21:00", // Ending time
-      maxLength: 120, // Max length of a booking in minutes
-      rows: 50,
-      columns: 6,
-    };
+
+    // const config = {
+    // n: 7, //Number of days available for booking
+    // timeInterval: 20, // Subdivisions of time in minutes
+    // startingTime: "08:00", // Starting time
+    // endingTime: "21:00", // Ending time
+    // maxLength: 120, // Max length of a booking in minutes
+    // rows: 50,
+    // columns: 6,
+    // };
 
     // Helper function to generate a range of time slots
     const generateTimeSlots = (start: Date, end: Date, interval: number) => {
@@ -726,19 +721,9 @@ class TelegramBot {
   }
 }
 
-interface Config {
-  botToken: string;
-  elasticEmailKey: string;
-  supabaseUrl: string;
-  supabaseKey: string;
-  googleServiceAccountEmail: string;
-  googleServiceAccountPrivateKey: string;
-  googleSpreadsheetId: string;
-}
-
 const configPath = "./config.yaml";
 const configData = fs.readFileSync(configPath, "utf8");
-const config: Config = yaml.load(configData) as Config;
+const config = yaml.load(configData) as typeof Config;
 
 //log config
 console.log("botToken: ", config.botToken);

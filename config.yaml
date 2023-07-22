@@ -4,3 +4,15 @@ botToken: ${BOT_TOKEN}
 elasticEmailKey: ${ELASTICEMAIL_KEY}
 supabaseUrl: ${SUPABASE_URL}
 supabaseKey: ${SUPABASE_KEY}
+googleServiceAccountEmail: ${GOOGLE_SERVICE_ACCOUNT_EMAIL}
+googleServiceAccountPrivateKey: ${GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY}
+googleSpreadsheetId: ${GOOGLE_SPREADSHEET_ID}
+n: 7
+bookingDays: 7
+daysToPrint: 7
+timeInterval: 20
+startingTime: "08:00"
+endingTime: "21:00"
+maxLength: 120
+rows: 50
+columns: 6
