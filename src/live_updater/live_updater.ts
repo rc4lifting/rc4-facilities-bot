@@ -1,5 +1,6 @@
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { DDatabase, Slot, Ballot } from "../database/";
+import { weekStart, addDays } from "../timeutils";
 export class LiveUpdater {
   private doc!: GoogleSpreadsheet;
   private db!: DDatabase;
@@ -73,7 +74,7 @@ export class LiveUpdater {
 
     // Prepare the header row
     const headerRow = ["TIME SLOT"];
-    const savedDate = new Date();
+    const savedDate = weekStart();
     //let headerRow: { [key: string]: string } = { "TIME SLOT": "" };
     for (let i = 0; i < daysToPrint; i++) {
       const currentDate = new Date(savedDate);
@@ -175,7 +176,25 @@ export class LiveUpdater {
 
     await secondSheet.clear();
 
-    await secondSheet.setHeaderRow(headerRow);
+    // Prepare the header row for ballots
+    const bHeaderRow = ["TIME SLOT"];
+    const bSavedDate = addDays(weekStart(), 7);
+    //let headerRow: { [key: string]: string } = { "TIME SLOT": "" };
+    for (let i = 0; i < daysToPrint; i++) {
+      const currentDate = new Date(bSavedDate);
+      currentDate.setDate(currentDate.getDate() + i);
+
+      // Get the current date in DD/MM/YY format
+      const dateString = currentDate
+        .toISOString()
+        .split("T")[0]
+        .split("-")
+        .reverse()
+        .join(" - ");
+      bHeaderRow.push(dateString);
+    }
+    console.log(bHeaderRow);
+    await secondSheet.setHeaderRow(bHeaderRow);
 
     for (let j = 0; j < intervalsPerDay; j++) {
       // Calculate the time for this interval

@@ -1,5 +1,6 @@
 import { Telegraf, Context, Scenes, Composer, session, Markup } from "telegraf";
 import { EmailVerifier } from "../email/email";
+import { addDays, weekStart } from "../timeutils";
 import { DDatabase } from "../database/d-database";
 import { WizardContext, WizardScene } from "telegraf/typings/scenes";
 import * as fs from "fs";
@@ -394,7 +395,7 @@ class TelegramBot {
     // Helper function to generate the dates for the next n days
     const generateDates = (n: number) => {
       //
-      const start_date = new Date().getDate() + 7;
+      const start_date = addDays(weekStart(), 7).getDate();
       const dates = Array<string>();
       for (let i = 0; i < n; i++) {
         const date = new Date();
@@ -519,8 +520,10 @@ class TelegramBot {
     // Helper function to generate the dates for the next n days
     const generateDatesForBook = (n: number) => {
       const start_date = new Date().getDate(); // start from the current day
+      const stop_date = addDays(weekStart(), n).getDate(); // end at the final day of the week
+      const span = stop_date - start_date;
       const dates = Array<string>();
-      for (let i = 0; i < n; i++) {
+      for (let i = 0; i < span; i++) {
         const date = new Date();
         date.setDate(start_date + i);
         dates.push(date.toISOString().slice(0, 10));
