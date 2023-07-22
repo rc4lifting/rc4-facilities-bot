@@ -1,5 +1,6 @@
 import { Telegraf, Context, Scenes, Composer, session, Markup } from "telegraf";
 import { EmailVerifier } from "../email/email";
+import { addDays, weekStart } from "../timeutils";
 import { DDatabase } from "../database/d-database";
 import { WizardContext, WizardScene } from "telegraf/typings/scenes";
 import * as fs from "fs";
@@ -162,7 +163,8 @@ class TelegramBot {
         /register - Register for the bot
         /verify - Verify your email address
         /unregister - Unregister and delete your data
-        /ballot - Ballot for a slot
+        /book - Book a slot for the current Monday - Sunday cycle
+        /ballot - Ballot for a slot in the coming Monday - Sunday cycle
         /view_sheets - View the spreadsheet for live updates on booking
   
         To begin registration, use the /register command.
@@ -320,6 +322,22 @@ class TelegramBot {
       try {
         await this.database.markUserAsVerified(telegramId);
         ctx.reply("Email address verified successfully!");
+        const helpMessage = `
+        Once again, here are the available commands:
+  
+        /start - Start the bot
+        /help - Show the help message
+        /register - Register for the bot
+        /verify - Verify your email address
+        /unregister - Unregister and delete your data
+        /book - Book a slot for the current Monday - Sunday cycle
+        /ballot - Ballot for a slot in the coming Monday - Sunday cycle
+        /view_sheets - View the spreadsheet for live updates on booking
+  
+        You have already been registered and verified.
+        You can also use the /unregister command to unregister from the bot and delete your data.
+      `;
+        ctx.reply(helpMessage);
       } catch (error) {
         console.error("Error marking user as verified:", error);
         ctx.reply("An error occurred while marking the user as verified.");
@@ -394,7 +412,7 @@ class TelegramBot {
     // Helper function to generate the dates for the next n days
     const generateDates = (n: number) => {
       //
-      const start_date = new Date().getDate() + 7;
+      const start_date = addDays(weekStart(), 7).getDate();
       const dates = Array<string>();
       for (let i = 0; i < n; i++) {
         const date = new Date();
@@ -519,8 +537,10 @@ class TelegramBot {
     // Helper function to generate the dates for the next n days
     const generateDatesForBook = (n: number) => {
       const start_date = new Date().getDate(); // start from the current day
+      const stop_date = addDays(weekStart(), n).getDate(); // end at the final day of the week
+      const span = stop_date - start_date;
       const dates = Array<string>();
-      for (let i = 0; i < n; i++) {
+      for (let i = 0; i < span; i++) {
         const date = new Date();
         date.setDate(start_date + i);
         dates.push(date.toISOString().slice(0, 10));

@@ -312,9 +312,7 @@ export class DDatabase {
    * @returns A result instance representing set
    *          of all bookings or an error if query fails
    */
-  public async getSlotsByUser(
-    telegramId: string
-  ): Promise<Slot[]> {
+  public async getSlotsByUser(telegramId: string): Promise<Slot[]> {
     const userId = await this.getUserId(telegramId);
     if (userId.isErr()) {
       // Safe to cast, as we have determined that
@@ -333,10 +331,7 @@ export class DDatabase {
       });
   }
 
-  public async getSlotsByTime(
-    startTime: Date,
-    endTime: Date
-  ): Promise<Slot[]> {
+  public async getSlotsByTime(startTime: Date, endTime: Date): Promise<Slot[]> {
     return this.client
       .from("SLOTS")
       .select("*")
@@ -362,6 +357,23 @@ export class DDatabase {
         const userData = response.data;
         if (userData.length > 0) {
           return userData[0].nus_email;
+        }
+        return null;
+      });
+  }
+
+  public async getUserById(id: number): Promise<string | null> {
+    return this.client
+      .from("USERS")
+      .select("name")
+      .eq("id", id)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        const userData = response.data;
+        if (userData.length > 0) {
+          return userData[0].name;
         }
         return null;
       });
@@ -588,11 +600,27 @@ export class DDatabase {
         return response.data;
       });
   }
-  public async getAllBookedSlots(): Promise<any> {
+  public async getAllBookedSlots(): Promise<Slot[]> {
     // Get the current date-time in ISO 8601 format
     const currentTime = new Date().toISOString();
     return this.client
       .from("SLOTS")
+      .select("*")
+      .gte("time_begin", currentTime)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+
+        // Return the response data directly
+        return response.data;
+      });
+  }
+  public async getAllBallots(): Promise<Ballot[]> {
+    // Get the current date-time in ISO 8601 format
+    const currentTime = new Date().toISOString();
+    return this.client
+      .from("BALLOTS")
       .select("*")
       .gte("time_begin", currentTime)
       .then((response) => {

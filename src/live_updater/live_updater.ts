@@ -1,5 +1,6 @@
 import { GoogleSpreadsheet } from "google-spreadsheet";
-import { DDatabase } from "../database/";
+import { DDatabase, Slot, Ballot } from "../database/";
+import { weekStart, addDays } from "../timeutils";
 export class LiveUpdater {
   private doc!: GoogleSpreadsheet;
   private db!: DDatabase;
@@ -56,18 +57,13 @@ export class LiveUpdater {
     const daysToPrint = 7; // Time interval
 
     const timeSlots = await this.db.getAllBookedSlots();
+    const ballots = await this.db.getAllBallots();
 
     console.log(timeSlots);
 
     const firstSheet = this.doc.sheetsByIndex[0]; // in the order they appear on the sheets UI
 
     await firstSheet.clear();
-    type Slot = {
-      id: number;
-      time_begin: string;
-      time_end: string;
-      booked_by: number;
-    };
 
     // Calculate the total number of intervals per day
     const intervalsPerDay =
@@ -78,7 +74,7 @@ export class LiveUpdater {
 
     // Prepare the header row
     const headerRow = ["TIME SLOT"];
-    const savedDate = new Date();
+    const savedDate = weekStart();
     //let headerRow: { [key: string]: string } = { "TIME SLOT": "" };
     for (let i = 0; i < daysToPrint; i++) {
       const currentDate = new Date(savedDate);
@@ -165,13 +161,112 @@ export class LiveUpdater {
             .reverse()
             .join(" - ")
         ] = bookedSlot
-          ? "Yes, booked by: " + bookedSlot.booked_by.toString()
+          ? "Yes, booked by: " + this.db.getUserById(bookedSlot.booked_by)
           : "No";
       }
       console.log(row);
 
       // Add the row to the sheet
       await firstSheet.addRow(row);
+    }
+
+    // second sheet is for ballots
+
+    const secondSheet = this.doc.sheetsByIndex[1]; // in the order they appear on the sheets UI
+
+    await secondSheet.clear();
+
+    // Prepare the header row for ballots
+    const bHeaderRow = ["TIME SLOT"];
+    const bSavedDate = addDays(weekStart(), 7);
+    //let headerRow: { [key: string]: string } = { "TIME SLOT": "" };
+    for (let i = 0; i < daysToPrint; i++) {
+      const currentDate = new Date(bSavedDate);
+      currentDate.setDate(currentDate.getDate() + i);
+
+      // Get the current date in DD/MM/YY format
+      const dateString = currentDate
+        .toISOString()
+        .split("T")[0]
+        .split("-")
+        .reverse()
+        .join(" - ");
+      bHeaderRow.push(dateString);
+    }
+    console.log(bHeaderRow);
+    await secondSheet.setHeaderRow(bHeaderRow);
+
+    for (let j = 0; j < intervalsPerDay; j++) {
+      // Calculate the time for this interval
+      const startTimeForThisInterval = new Date(
+        new Date(`1970-01-01T${startingTime}Z`).getTime() +
+          j * timeInterval * 60000
+      );
+      const endTimeForThisInterval = new Date(
+        new Date(`1970-01-01T${startingTime}Z`).getTime() +
+          (j + 1) * timeInterval * 60000
+      );
+
+      // Format the time for this interval as HH:MM - HH:MM
+      const timeForThisIntervalString =
+        startTimeForThisInterval.toISOString().substring(11, 16) +
+        " - " +
+        endTimeForThisInterval.toISOString().substring(11, 16);
+
+      const row: { [key: string]: string } = {
+        "TIME SLOT": timeForThisIntervalString,
+      };
+      console.log(timeForThisIntervalString);
+
+      for (let i = 0; i < daysToPrint; i++) {
+        const currentDate = new Date(savedDate);
+        currentDate.setDate(currentDate.getDate() + i);
+        // Get the current date in YYYY-MM-DD format
+        const dateString = currentDate.toISOString().split("T")[0];
+        // console.log(dateString);
+
+        // Check if there are ballots for this time
+        const slotBallots = ballots.filter((ballot: Ballot) => {
+          // Create Date objects for the start and end of this slot
+          const timeslotStart = new Date(
+            `${dateString}T${startTimeForThisInterval
+              .toISOString()
+              .substring(11, 16)}:00Z`
+          );
+          timeslotStart.setHours(timeslotStart.getHours() - 8); // Add 8 hours to convert to UTC
+          const timeslotEnd = new Date(
+            `${dateString}T${endTimeForThisInterval
+              .toISOString()
+              .substring(11, 16)}:00Z`
+          );
+          timeslotEnd.setHours(timeslotEnd.getHours() - 8); // Add 8 hours to convert to UTC
+          // Create Date objects for the start and end of the ballot
+          const slotStart = new Date(ballot.time_begin);
+          const slotEnd = new Date(ballot.time_end);
+
+          // Check if the slot overlaps with the ballot
+          return (
+            (slotStart >= timeslotStart && slotStart < timeslotEnd) ||
+            (slotEnd > timeslotStart && slotEnd <= timeslotEnd) ||
+            (slotStart <= timeslotStart && slotEnd >= timeslotEnd)
+          );
+        });
+
+        //log currnetDate
+        console.log(currentDate);
+        row[
+          currentDate
+            .toISOString()
+            .split("T")[0]
+            .split("-")
+            .reverse()
+            .join(" - ")
+        ] = slotBallots.length.toString();
+      }
+      console.log(row);
+
+      // Add the row to the sheet
+      await secondSheet.addRow(row);
     }
   }
 }
