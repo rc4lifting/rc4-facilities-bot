@@ -379,15 +379,40 @@ class TelegramBot {
       ctx.reply("Select a date:", Markup.inlineKeyboard(buttons));
     });
 
-    // const config = {
-    // n: 7, //Number of days available for booking
-    // timeInterval: 20, // Subdivisions of time in minutes
-    // startingTime: "08:00", // Starting time
-    // endingTime: "21:00", // Ending time
-    // maxLength: 120, // Max length of a booking in minutes
-    // rows: 50,
-    // columns: 6,
-    // };
+    this.bot.command("ballot", async (ctx) => {
+      const telegramId = ctx.from!.id.toString();
+      //check if registered
+      const isRegistered = await this.database.isRegistered(telegramId);
+      if (!isRegistered) {
+        ctx.reply("You are not registered. Please run /register to register.");
+        return;
+      }
+      //check if verified
+      const isVerified = await this.database.isVerified(telegramId);
+      if (!isVerified) {
+        ctx.reply(
+          "You are not verified. Please run /get_code to get a verification code sent to your email address."
+        );
+        return;
+      }
+      const dates = generateDates(config.n);
+      const buttons = dates.map((date) => {
+        const [year, month, day] = date.split("-");
+        const formattedDate = new Date(date).toLocaleDateString("en-GB", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        });
+        return [Markup.button.callback(formattedDate, `DATE ${date}`)];
+      });
+      ctx.reply("Select a date:", Markup.inlineKeyboard(buttons));
+    });
+
+    this.bot.command("testupdateballots", async (ctx) => {
+      console.log("test");
+      await this.updater.updateSheets();
+      //log
+    });
 
     // Helper function to generate a range of time slots
     const generateTimeSlots = (start: Date, end: Date, interval: number) => {

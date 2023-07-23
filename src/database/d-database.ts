@@ -600,6 +600,45 @@ export class DDatabase {
         return response.data;
       });
   }
+  public async getAllBookedSlotsSe(start: Date, end: Date): Promise<Slot[]> {
+    // Convert the start and end dates to ISO 8601 format
+    const startTime = start.toISOString();
+    const endTime = end.toISOString();
+
+    return this.client
+      .from("SLOTS")
+      .select("*")
+      .gte("time_begin", startTime)
+      .lte("time_end", endTime)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+
+        // Return the response data directly
+        return response.data as Slot[];
+      });
+  }
+
+  public async getAllBallotsSe(start: Date, end: Date): Promise<Ballot[]> {
+    // Convert the start and end dates to ISO 8601 format
+    const startTime = start.toISOString();
+    const endTime = end.toISOString();
+
+    return this.client
+      .from("BALLOTS")
+      .select("*")
+      .gte("time_begin", startTime)
+      .lte("time_end", endTime)
+      .then((response) => {
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+
+        // Return the response data directly
+        return response.data as Ballot[];
+      });
+  }
   public async getAllBookedSlots(): Promise<Slot[]> {
     // Get the current date-time in ISO 8601 format
     const currentTime = new Date().toISOString();
@@ -616,6 +655,7 @@ export class DDatabase {
         return response.data;
       });
   }
+
   public async getAllBallots(): Promise<Ballot[]> {
     // Get the current date-time in ISO 8601 format
     const currentTime = new Date().toISOString();
