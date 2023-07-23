@@ -19,7 +19,7 @@ import {
   eachDayOfInterval,
   addWeeks,
 } from "date-fns";
-import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
+import { format, utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 
 interface MyWizardSession extends Scenes.WizardSessionData {
   // will be available under `ctx.scene.session.myWizardSessionProp`
@@ -404,14 +404,14 @@ class TelegramBot {
       start: Date,
       end: Date,
       interval: number
-    ): string[][] => {
-      const slots: string[][] = [];
+    ): Date[][] => {
+      const slots: Date[][] = [];
       let currentStart = start;
 
       while (isBefore(currentStart, end)) {
         const currentEnd = addMinutes(currentStart, interval);
         if (isBefore(currentEnd, end)) {
-          slots.push([formatISO(currentStart), formatISO(currentEnd)]);
+          slots.push([currentStart, currentEnd]);
         }
         currentStart = currentEnd;
       }
@@ -445,6 +445,13 @@ class TelegramBot {
       return dates;
     };
 
+    function utcToSGT(date: Date): string {
+      const timeZone = "Asia/Singapore"; // GMT+8
+      const dateInSGT = utcToZonedTime(date, timeZone);
+      const timeString = format(dateInSGT, "HH:mm", { timeZone });
+      return timeString;
+    }
+
     // Command handler: ballot slot
     this.bot.command(
       "ballot",
@@ -463,6 +470,7 @@ class TelegramBot {
             day: "numeric",
             month: "long",
           });
+
           return [Markup.button.callback(formattedDate, `BALLOT_DATE ${date}`)];
         });
         ctx.reply("Select a date:", Markup.inlineKeyboard(buttons));
@@ -498,10 +506,11 @@ class TelegramBot {
             const index = i * config.columns + j;
             if (index < slots.length) {
               const slot = slots[index];
+
               row.push(
                 Markup.button.callback(
-                  `${slot[0]}`,
-                  `BALLOT_START_TIME ${slot[0]}`
+                  `${utcToSGT(slot[0])}`,
+                  `BALLOT_START_TIME ${slot[0].toISOString()}`
                 )
               );
             }
@@ -529,12 +538,16 @@ class TelegramBot {
           endDate,
           config.timeInterval
         );
+
+        console.log(slots);
+        //log the buttons
         const buttons = slots.map((slot) =>
           Markup.button.callback(
-            `${slot[1]}`,
-            `BALLOT_END_TIME ${startTime} ${slot[1]}`
+            `${utcToSGT(slot[1])}`,
+            `BET ${startTime} ${slot[1].toISOString()}`
           )
         );
+        console.log(buttons);
 
         ctx.editMessageText(
           `You selected ${startTime} as starting time. Select an ending time:`,
@@ -544,7 +557,7 @@ class TelegramBot {
     );
 
     this.bot.action(
-      /^BALLOT_END_TIME (.+) (.+)/,
+      /^BET (.+) (.+)/,
       checkRegistrationAndVerification(),
       async (ctx) => {
         const startTime = ctx.match![1];
