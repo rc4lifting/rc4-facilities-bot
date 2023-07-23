@@ -159,7 +159,7 @@ export class LiveUpdater {
           //     (await this.db.getUserById(bookedSlot.booked_by))
           //   : "No";
         ] = bookedSlot
-          ? "X" + (await this.db.getUserById(bookedSlot.booked_by))
+          ? "X - " + (await this.db.getUserById(bookedSlot.booked_by))
           : "FREE";
       }
       console.log(row);
@@ -220,7 +220,7 @@ export class LiveUpdater {
 
       for (let i = 0; i < config.daysToPrint; i++) {
         const currentDate = new Date(savedDate);
-        currentDate.setDate(currentDate.getDate() + i);
+        currentDate.setDate(currentDate.getDate() + i + 7);
         // Get the current date in YYYY-MM-DD format
         const dateString = currentDate.toISOString().split("T")[0];
         // console.log(dateString);
@@ -262,6 +262,7 @@ export class LiveUpdater {
             .reverse()
             .join(" - ")
         ] = slotBallots.length.toString();
+        // ] = "BRUH";
       }
       console.log(row);
 
