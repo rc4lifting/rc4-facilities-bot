@@ -1,5 +1,6 @@
 import fs from "fs";
 import yaml from "js-yaml";
+import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
 
 interface Config {
   botToken: string;
@@ -18,6 +19,9 @@ interface Config {
   rows: number;
   columns: number;
   daysToPrint: number;
+  weekendsDisallowed: boolean;
+  startDateTimeUTC: Date;
+  endDateTimeUTC: Date;
 }
 
 const configPath = "./config.yaml";
@@ -40,5 +44,15 @@ console.log("endingTime: ", config.endingTime);
 console.log("maxLength: ", config.maxLength);
 console.log("rows: ", config.rows);
 console.log("columns: ", config.columns);
+// Create Date objects for the current day with the given start and end times
+const startingDateTimeLocal = new Date(`1970-01-01T${config.startingTime}:00`);
+const endingDateTimeLocal = new Date(`1970-01-01T${config.endingTime}:00`);
+
+// Convert the start and end times to UTC
+config.startDateTimeUTC = zonedTimeToUtc(
+  startingDateTimeLocal,
+  "Asia/Singapore"
+);
+config.endDateTimeUTC = zonedTimeToUtc(endingDateTimeLocal, "Asia/Singapore");
 
 export default config;
