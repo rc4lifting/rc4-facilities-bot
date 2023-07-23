@@ -424,7 +424,7 @@ class TelegramBot {
     });
 
     // Helper function to generate the dates for the ith week
-    const generateDates = (weekOffset: number = 0) => {
+    const generateDates = (weekOffset = 0) => {
       // Ensure that weekOffset is an integer.
       weekOffset = Math.floor(weekOffset);
 
@@ -575,6 +575,134 @@ class TelegramBot {
           console.log("end: ", endTime);
           //TODO: use the ballot function
           await this.manager.ballot(
+            ctx.from!.id.toString(),
+            startDate,
+            endDate
+          );
+          ctx.reply("Booking added to database.");
+        } catch (error) {
+          console.error("Error adding booking to database:", error);
+          ctx.reply("An error occurred while adding booking to database.");
+          ctx.reply("Error is " + error);
+          return;
+        }
+      }
+    );
+
+    // Command handler: book slot
+    this.bot.command(
+      "book",
+      checkRegistrationAndVerification(),
+      async (ctx) => {
+        const dates = generateDates(0);
+        //filter out the weekends
+        const filteredDates = dates.filter((date) => {
+          const day = new Date(date).getDay();
+          return day !== 0 && day !== 6;
+        });
+        const buttons = filteredDates.map((date) => {
+          const [year, month, day] = date.split("-");
+          const formattedDate = new Date(date).toLocaleDateString("en-GB", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          });
+
+          return [Markup.button.callback(formattedDate, `BOD ${date}`)];
+        });
+        ctx.reply("Select a date:", Markup.inlineKeyboard(buttons));
+      }
+    );
+
+    this.bot.action(/^BOD (.+)/, checkRegistrationAndVerification(), (ctx) => {
+      const date = ctx.match![1];
+
+      //starting and ending are in gmt+8, convert to utc
+      //convert date and set time to startTime, endTime, convert to utc
+      const startTime = zonedTimeToUtc(
+        `${date}T${config.startingTime}:00`,
+        "Asia/Singapore"
+      );
+      const endTime = zonedTimeToUtc(
+        `${date}T${config.endingTime}:00`,
+        "Asia/Singapore"
+      );
+      const slots = generateTimeSlots(startTime, endTime, config.timeInterval);
+      const filteredSlots = slots.filter((slot) => {
+        return new Date(slot[1]) > new Date();
+      });
+      //filter for slots that are past time
+
+      const buttons = [];
+      for (let i = 0; i < config.rows; i++) {
+        const row = [];
+        for (let j = 0; j < config.columns; j++) {
+          const index = i * config.columns + j;
+          if (index < filteredSlots.length) {
+            const slot = filteredSlots[index];
+
+            row.push(
+              Markup.button.callback(
+                `${utcToSGT(slot[0])}`,
+                `BOST ${slot[0].toISOString()}`
+              )
+            );
+          }
+        }
+        buttons.push(row);
+      }
+      ctx.editMessageText(
+        `You selected ${date}. Select a starting time:`,
+        Markup.inlineKeyboard(buttons)
+      );
+    });
+
+    this.bot.action(/^BOST (.+)/, checkRegistrationAndVerification(), (ctx) => {
+      const startTime = ctx.match![1];
+      //convert startTime to date
+      const startDate = new Date(startTime);
+      //add the time in minutes from config
+      //TODO: EXCLUDE BOOKED SLOTS
+      const endDate = addMinutes(startDate, config.maxLength);
+      const slots = generateTimeSlots(startDate, endDate, config.timeInterval);
+      const filteredSlots = slots.filter((slot) => {
+        return new Date(slot[1]) > new Date();
+      });
+
+      //log the buttons
+      const buttons = filteredSlots.map((slot) =>
+        Markup.button.callback(
+          `${utcToSGT(slot[1])}`,
+          `BOET ${startTime} ${slot[1].toISOString()}`
+        )
+      );
+      console.log(buttons);
+
+      ctx.editMessageText(
+        `You selected ${startTime} as starting time. Select an ending time:`,
+        Markup.inlineKeyboard(buttons)
+      );
+    });
+
+    this.bot.action(
+      /^BOET (.+) (.+)/,
+      checkRegistrationAndVerification(),
+      async (ctx) => {
+        const startTime = ctx.match![1];
+        const endTime = ctx.match![2];
+
+        ctx.editMessageText(
+          `You selected ${endTime} as ending time. Adding booking from ${startTime} to ${endTime}.`
+        );
+        const startDate = new Date(startTime);
+        const endDate = new Date(endTime);
+        try {
+          // await this.database.addBallot(ctx.from!.id.toString(), start, end);
+          // log the dates
+          console.log("start: ", startTime);
+          console.log("end: ", endTime);
+          //TODO: use the ballot function
+          await this.manager.tryBook(
             ctx.from!.id.toString(),
             startDate,
             endDate

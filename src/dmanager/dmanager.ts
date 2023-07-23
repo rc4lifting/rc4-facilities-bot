@@ -75,7 +75,7 @@ export class DManager {
       "Asia/Singapore"
     );
 
-    if (isAfter(endTime, startTime)) {
+    if (isBefore(endTime, startTime)) {
       throw new Error(
         "End time cannot be before start time! We've logged this incident."
       );
