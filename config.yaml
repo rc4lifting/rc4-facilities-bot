@@ -16,3 +16,4 @@ endingTime: "21:00"
 maxLength: 120
 rows: 50
 columns: 6
+weekendsDisallowed: true

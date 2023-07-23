@@ -1,4 +1,7 @@
-import { GoogleSpreadsheet } from "google-spreadsheet";
+import {
+  GoogleSpreadsheetWorksheet,
+  GoogleSpreadsheet,
+} from "google-spreadsheet";
 import { DDatabase, Slot, Ballot } from "../database/";
 import { weekStart, addDays } from "../timeutils";
 import config from "../config/config";
@@ -39,13 +42,6 @@ export class LiveUpdater {
 
     console.log("loaded!");
   }
-
-  // async test(): Promise<any> {
-  // console.log("settle");
-  //return this.db.getAllBookedSlots();
-
-  // return this.updateSheets();
-  // }
 
   async updateSheets() {
     //await this.doc.loadInfo();
@@ -91,6 +87,7 @@ export class LiveUpdater {
     // Add the header row
     await firstSheet.setHeaderRow(headerRow);
 
+    let rows = [];
     for (let j = 0; j < intervalsPerDay; j++) {
       // Calculate the time for this interval
       const startTimeForThisInterval = new Date(
@@ -157,15 +154,20 @@ export class LiveUpdater {
             .split("-")
             .reverse()
             .join(" - ")
+          // ] = bookedSlot
+          //   ? "Yes, booked by: " +
+          //     (await this.db.getUserById(bookedSlot.booked_by))
+          //   : "No";
         ] = bookedSlot
-          ? "Yes, booked by: " + this.db.getUserById(bookedSlot.booked_by)
-          : "No";
+          ? "X - " + (await this.db.getUserById(bookedSlot.booked_by))
+          : "FREE";
       }
       console.log(row);
 
       // Add the row to the sheet
-      await firstSheet.addRow(row);
+      rows.push(row);
     }
+    await firstSheet.addRows(rows);
 
     // second sheet is for ballots
 
@@ -173,6 +175,7 @@ export class LiveUpdater {
 
     await secondSheet.clear();
 
+    rows = [];
     // Prepare the header row for ballots
     const bHeaderRow = ["TIME SLOT"];
     const bSavedDate = addDays(weekStart(), 7);
@@ -217,7 +220,7 @@ export class LiveUpdater {
 
       for (let i = 0; i < config.daysToPrint; i++) {
         const currentDate = new Date(savedDate);
-        currentDate.setDate(currentDate.getDate() + i);
+        currentDate.setDate(currentDate.getDate() + i + 7);
         // Get the current date in YYYY-MM-DD format
         const dateString = currentDate.toISOString().split("T")[0];
         // console.log(dateString);
@@ -259,12 +262,14 @@ export class LiveUpdater {
             .reverse()
             .join(" - ")
         ] = slotBallots.length.toString();
+        // ] = "BRUH";
       }
       console.log(row);
 
       // Add the row to the sheet
-      await secondSheet.addRow(row);
+      rows.push(row);
     }
+    await secondSheet.addRows(rows);
   }
 }
 
