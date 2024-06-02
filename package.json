@@ -15,7 +15,9 @@
     "format:ci": "prettier --list-different \"src/**/*.{ts,tsx}\"",
     "test": "jest",
     "test-coverage": "jest --coverage",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "start": "node dist/bot/bot.js"
+
   },
   "devDependencies": {
     "@types/cron": "^2.0.1",
@@ -46,6 +48,6 @@
     "google-spreadsheet": "^3.3.0",
     "js-yaml": "^4.1.0",
     "plotly.js": "^2.24.3",
-    "telegraf": "^4.12.2"
+    "telegraf": "github:telegraf/telegraf"
   }
 }

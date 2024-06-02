@@ -808,6 +808,11 @@
     "@supabase/storage-js" "^2.5.1"
     "cross-fetch" "^3.1.5"
 
+"@telegraf/types@^7.1.0":
+  "integrity" "sha512-kGevOIbpMcIlCDeorKGpwZmdH7kHbqlk/Yj6dEpJMKEQw5lk0KVQY0OLXaCswy8GqlIVLd5625OB+rAntP9xVw=="
+  "resolved" "https://registry.npmjs.org/@telegraf/types/-/types-7.1.0.tgz"
+  "version" "7.1.0"
+
 "@tsconfig/node10@^1.0.7":
   "integrity" "sha512-jNsYVVxU8v5g43Erja32laIDHXeoNvFEpX33OK4d6hljo3jDhCBDhx5dhCCTMWUojscpAagGiRkBKxpdl9fxqA=="
   "resolved" "https://registry.npmjs.org/@tsconfig/node10/-/node10-1.0.9.tgz"
@@ -3783,10 +3788,10 @@
   "resolved" "https://registry.npmjs.org/node-domexception/-/node-domexception-1.0.0.tgz"
   "version" "1.0.0"
 
-"node-fetch@^2.6.11", "node-fetch@^2.6.7", "node-fetch@^2.6.8":
-  "integrity" "sha512-4I6pdBY1EthSqDmJkiNk3JIT8cswwR9nfeW/cPdUagJYEQG7R95WRH74wpz7ma8Gh/9dI9FP+OU+0E4FvtA55w=="
-  "resolved" "https://registry.npmjs.org/node-fetch/-/node-fetch-2.6.11.tgz"
-  "version" "2.6.11"
+"node-fetch@^2.6.11", "node-fetch@^2.6.7", "node-fetch@^2.7.0":
+  "integrity" "sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A=="
+  "resolved" "https://registry.npmjs.org/node-fetch/-/node-fetch-2.7.0.tgz"
+  "version" "2.7.0"
   dependencies:
     "whatwg-url" "^5.0.0"
 
@@ -4679,19 +4684,18 @@
     "mkdirp" "^1.0.3"
     "yallist" "^4.0.0"
 
-"telegraf@^4.12.2":
-  "integrity" "sha512-PgwqI4wD86cMqVfFtEM9JkGGnMHgvgLJbReZMmwW4z35QeOi4DvbdItONld4bPnYn3A1jcO0SRKs0BXmR+x+Ew=="
-  "resolved" "https://registry.npmjs.org/telegraf/-/telegraf-4.12.2.tgz"
-  "version" "4.12.2"
+"telegraf@github:telegraf/telegraf":
+  "resolved" "git+ssh://git@github.com/telegraf/telegraf.git#48a475d034ede5e01070a7e2b6b15dc48c3d3f9b"
+  "version" "4.16.3"
   dependencies:
+    "@telegraf/types" "^7.1.0"
     "abort-controller" "^3.0.0"
     "debug" "^4.3.4"
     "mri" "^1.2.0"
-    "node-fetch" "^2.6.8"
+    "node-fetch" "^2.7.0"
     "p-timeout" "^4.1.0"
     "safe-compare" "^1.1.4"
     "sandwich-stream" "^2.0.2"
-    "typegram" "^4.3.0"
 
 "test-exclude@^6.0.0":
   "integrity" "sha512-cAGWPIyOHU6zlmg88jwm7VRyXnMN7iV68OGAbYDk/Mh/xC/pzVPlQtY6ngoIH/5/tciuhGfvESU8GrHrcxD56w=="
@@ -4877,11 +4881,6 @@
   "integrity" "sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA=="
   "resolved" "https://registry.npmjs.org/typedarray/-/typedarray-0.0.6.tgz"
   "version" "0.0.6"
-
-"typegram@^4.3.0":
-  "integrity" "sha512-pS4STyOZoJ++Mwa9GPMTNjOwEzMkxFfFt1By6IbMOJfheP0utMP/H1ga6J9R4DTjAYBr0UDn4eQg++LpWBvcAg=="
-  "resolved" "https://registry.npmjs.org/typegram/-/typegram-4.3.0.tgz"
-  "version" "4.3.0"
 
 "typescript@^5.0.4", "typescript@>=2.7", "typescript@>=2.8.0 || >= 3.2.0-dev || >= 3.3.0-dev || >= 3.4.0-dev || >= 3.5.0-dev || >= 3.6.0-dev || >= 3.6.0-beta || >= 3.7.0-dev || >= 3.7.0-beta", "typescript@>=4.3 <6":
   "integrity" "sha512-cW9T5W9xY37cc+jfEnaUvX91foxtHkza3Nw3wkoF4sSlKn0MONdkdEndig/qPBWXNkmplh3NzayQzCiHM4/hqw=="

@@ -136,3 +136,4 @@ supabase
 
 #ignore all yamls
 *.yaml
+config.yaml

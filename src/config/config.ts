@@ -1,5 +1,5 @@
-import fs from "fs";
-import yaml from "js-yaml";
+import * as fs from "fs";
+import * as yaml from "js-yaml";
 import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
 
 interface Config {
