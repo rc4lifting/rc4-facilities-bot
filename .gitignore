@@ -137,3 +137,7 @@ supabase
 #ignore all yamls
 *.yaml
 config.yaml
+
+
+# ignore .js files
+*.js
