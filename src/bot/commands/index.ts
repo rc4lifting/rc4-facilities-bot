@@ -5,6 +5,7 @@ import verifyCommand from "./verify";
 import unregisterCommand from "./unregister";
 import ballotCommand from "./ballot";
 import bookCommand from "./book";
+import getCodeCommand from "./get_code";
 
 export {
   startCommand,
@@ -14,4 +15,5 @@ export {
   unregisterCommand,
   ballotCommand,
   bookCommand,
+  getCodeCommand,
 };

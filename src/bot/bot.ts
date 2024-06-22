@@ -7,6 +7,7 @@ import {
   unregisterCommand,
   ballotCommand,
   bookCommand,
+  getCodeCommand,
 } from "./commands";
 import AuthMiddleware from "./middleware/auth";
 import ErrorHandlerMiddleware from "./middleware/error-handler";
@@ -64,6 +65,7 @@ class TelegramBot {
       ballotCommand(manager)
     );
     this.bot.command("book", this.authMiddleware.handle, bookCommand(manager));
+    this.bot.command("get_code", getCodeCommand(database, emailVerifier));
   }
 
   private setupMiddleware(): void {
