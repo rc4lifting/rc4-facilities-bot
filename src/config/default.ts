@@ -4,7 +4,7 @@ import { zonedTimeToUtc } from "date-fns-tz";
 
 interface Config {
   botToken: string;
-  elasticEmailKey: string;
+  resendAPIKey: string;
   supabaseUrl: string;
   supabaseKey: string;
   googleServiceAccountEmail: string;
@@ -29,7 +29,7 @@ const configData = fs.readFileSync(configPath, "utf8");
 const config: Config = yaml.load(configData) as Config;
 
 console.log("botToken: ", config.botToken);
-console.log("elasticEmailKey: ", config.elasticEmailKey);
+console.log("resendAPIKey: ", config.resendAPIKey);
 console.log("supabaseUrl: ", config.supabaseUrl);
 console.log("supabaseKey: ", config.supabaseKey);
 console.log("googleServiceAccountEmail: ", config.googleServiceAccountEmail);

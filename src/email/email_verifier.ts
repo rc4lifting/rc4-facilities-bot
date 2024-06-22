@@ -1,44 +1,39 @@
-import axios from "axios";
+import { Resend } from "resend";
+import config from "../config/default";
 
 export class EmailVerifier {
-  private readonly apiKey: string;
+  private resend: Resend;
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
+  private constructor(apiKey: string) {
+    this.resend = new Resend(apiKey);
+  }
+
+  public static async build(): Promise<EmailVerifier> {
+    return new EmailVerifier(config.resendAPIKey);
   }
 
   public async sendVerificationEmail(
     to: string,
     verificationCode: string
   ): Promise<void> {
-    const url = "https://api.elasticemail.com/v2/email/send";
-
-    const data = new URLSearchParams();
-    data.append("apikey", this.apiKey);
-    data.append("subject", "RC4 Gym Email Verification");
-    data.append("from", "rc4gym@yongtaufoo.xyz");
-    data.append("to", to);
-    data.append(
-      "bodyHtml",
-      `<p>Dear User,</p>
-       <p>Your verification code is: <strong>${verificationCode}</strong></p>
-       <p>Please enter this code to verify your email.</p>`
-    );
-    data.append("isTransactional", "true");
+    const emailDetails = {
+      from: "verification@rc4-facilities-bot.yongtaufoo.xyz",
+      to: to,
+      subject: "RC4 Gym Email Verification",
+      html: `
+        <p>Dear User,</p>
+        <p>Your verification code is: <strong>${verificationCode}</strong></p>
+        <p>Please enter this code to verify your email.</p>
+      `,
+    };
 
     try {
-      const response = await axios.post(url, data.toString(), {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      });
-      console.log(`Email sent successfully: ${response.data}`);
+      const response = await this.resend.emails.send(emailDetails);
+      console.log("Email sent successfully:", response);
     } catch (error) {
       console.error("Error sending verification email:", error);
       throw new Error("Failed to send verification email");
     }
-  }
-
-  public static build(apiKey: string): EmailVerifier {
-    return new EmailVerifier(apiKey);
   }
 }
 

@@ -16,7 +16,7 @@ async function startApp() {
       supabaseKey: config.supabaseKey,
     });
 
-    const emailService = new EmailVerifier(config.elasticEmailKey);
+    const emailService = await EmailVerifier.build();
     const manager = new Manager(database);
     const liveUpdater = new LiveUpdater(
       config.googleServiceAccountEmail,
