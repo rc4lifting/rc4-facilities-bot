@@ -1,8 +1,7 @@
 # **NUS Orbital 2023**
 
-# Dplatform
+# RC4 Facility Booking Telegram Bot (RC4 CSC Sports Committee 2024)
 
-Dplatform is a system designed to manage the bookings of an NUS venue. It automates the underlying workings of the RC4 venue booking system to make booking venues a quick and smooth process for the end user.
 
 # Table of Contents
 

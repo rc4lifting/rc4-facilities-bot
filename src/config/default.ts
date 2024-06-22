@@ -1,6 +1,6 @@
-import fs from "fs";
-import yaml from "js-yaml";
-import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
+import * as fs from "fs";
+import * as yaml from "js-yaml";
+import { zonedTimeToUtc } from "date-fns-tz";
 
 interface Config {
   botToken: string;
@@ -44,11 +44,14 @@ console.log("endingTime: ", config.endingTime);
 console.log("maxLength: ", config.maxLength);
 console.log("rows: ", config.rows);
 console.log("columns: ", config.columns);
-// Create Date objects for the current day with the given start and end times
+
+// Correctly format the private key
+config.googleServiceAccountPrivateKey =
+  config.googleServiceAccountPrivateKey.replace(/\\n/g, "\n");
+
 const startingDateTimeLocal = new Date(`1970-01-01T${config.startingTime}:00`);
 const endingDateTimeLocal = new Date(`1970-01-01T${config.endingTime}:00`);
 
-// Convert the start and end times to UTC
 config.startDateTimeUTC = zonedTimeToUtc(
   startingDateTimeLocal,
   "Asia/Singapore"

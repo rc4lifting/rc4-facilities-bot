@@ -136,3 +136,16 @@ supabase
 
 #ignore all yamls
 *.yaml
+config.yaml
+
+# ignore .js files
+*.js
+
+# ignore .txt files
+*.txt
+
+# ignore python files
+*.py
+
+# ignore DS_CONFIG
+.DS_Store
