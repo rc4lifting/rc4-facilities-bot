@@ -49,11 +49,7 @@ class TelegramBot {
     this.bot.command("start", startCommand);
     this.bot.command("help", helpCommand);
     this.bot.command("register", registerCommand);
-    this.bot.command(
-      "verify",
-      this.authMiddleware.handle,
-      verifyCommand(database)
-    );
+    this.bot.command("verify", verifyCommand(database));
     this.bot.command(
       "unregister",
       this.authMiddleware.handle,
