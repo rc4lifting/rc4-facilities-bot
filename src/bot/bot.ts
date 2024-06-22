@@ -15,7 +15,7 @@ import { Database } from "../database";
 import { EmailVerifier } from "../email";
 import { LiveUpdater } from "../live_updater";
 import { Manager } from "../manager";
-import { BotContext } from "./context"; // Import the BotContext
+import { BotContext } from "./context";
 
 class TelegramBot {
   private bot: Telegraf<BotContext>;
@@ -35,9 +35,8 @@ class TelegramBot {
     this.errorHandlerMiddleware = new ErrorHandlerMiddleware();
     this.registrationScene = new RegistrationScene(database);
 
-    this.setupCommands(database, emailService, liveUpdater, manager);
     this.setupMiddleware();
-    this.setupScenes();
+    this.setupCommands(database, emailService, liveUpdater, manager);
   }
 
   private setupCommands(
@@ -46,35 +45,43 @@ class TelegramBot {
     liveUpdater: LiveUpdater,
     manager: Manager
   ): void {
-    this.bot.command("start", startCommand as Middleware<BotContext>);
-    this.bot.command("help", helpCommand as Middleware<BotContext>);
-    this.bot.command("register", registerCommand as Middleware<BotContext>);
+    this.bot.command("start", startCommand);
+    this.bot.command("help", helpCommand);
+    this.bot.command("register", registerCommand);
     this.bot.command(
       "verify",
-      verifyCommand(database) as Middleware<BotContext>
+      this.authMiddleware.handle,
+      verifyCommand(database)
     );
     this.bot.command(
       "unregister",
-      unregisterCommand(database) as Middleware<BotContext>
+      this.authMiddleware.handle,
+      unregisterCommand(database)
     );
     this.bot.command(
       "ballot",
-      ballotCommand(manager) as Middleware<BotContext>
+      this.authMiddleware.handle,
+      ballotCommand(manager)
     );
-    this.bot.command("book", bookCommand(manager) as Middleware<BotContext>);
+    this.bot.command("book", this.authMiddleware.handle, bookCommand(manager));
   }
 
   private setupMiddleware(): void {
     this.bot.use(session());
-    this.bot.use(this.authMiddleware.handle as Middleware<BotContext>);
-    this.bot.use(this.errorHandlerMiddleware.handle as Middleware<BotContext>);
-  }
-
-  private setupScenes(): void {
     const stage = new Scenes.Stage<BotContext>([
       this.registrationScene.middleware(),
     ]);
     this.bot.use(stage.middleware());
+    this.bot.use(this.errorHandlerMiddleware.handle as Middleware<BotContext>);
+  }
+
+  private setupScenes(): void {
+    console.log("Setting up scenes...");
+    const stage = new Scenes.Stage<BotContext>([
+      this.registrationScene.middleware(),
+    ]);
+    this.bot.use(stage.middleware());
+    console.log("Scenes setup complete");
   }
 
   public async start(): Promise<void> {

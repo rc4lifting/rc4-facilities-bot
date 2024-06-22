@@ -16,7 +16,7 @@
     "test": "jest",
     "test-coverage": "jest --coverage",
     "prepare": "husky install",
-    "start": "node dist/bot/bot.js"
+    "start": "npm run build && node dist/app.js"
   },
   "devDependencies": {
     "@types/cron": "^2.0.1",

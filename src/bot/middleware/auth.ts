@@ -1,3 +1,4 @@
+// middleware/auth.ts
 import { Context } from "telegraf";
 import { Database } from "../../database";
 
@@ -5,7 +6,12 @@ export default class AuthMiddleware {
   private database: Database;
 
   constructor(database: Database) {
+    //throw if database is undefined
+    if (!database) {
+      throw new Error("Database is required");
+    }
     this.database = database;
+    this.handle = this.handle.bind(this);
   }
 
   public async handle(ctx: Context, next: () => Promise<void>): Promise<void> {

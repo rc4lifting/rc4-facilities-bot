@@ -1,5 +1,4 @@
-// dmanager/dmanager.ts
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { Database } from "../database";
 import {
   addDays,
   startOfWeek,
@@ -14,10 +13,10 @@ import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import config from "../config/default";
 
 class Manager {
-  private client: SupabaseClient;
+  private db: Database;
 
-  constructor(supabaseUrl: string, supabaseKey: string) {
-    this.client = createClient(supabaseUrl, supabaseKey);
+  constructor(database: Database) {
+    this.db = database;
   }
 
   public async resolve(): Promise<void> {
@@ -26,21 +25,9 @@ class Manager {
       7
     );
     const ballotEnd = addDays(ballotStart, 7);
-    const { data: ballots, error } = await this.client
-      .from("BALLOTS")
-      .select("*")
-      .gte("time_begin", ballotStart.toISOString())
-      .lt("time_end", ballotEnd.toISOString());
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    await this.client
-      .from("BALLOTS")
-      .delete()
-      .gte("time_begin", ballotStart.toISOString())
-      .lt("time_end", ballotEnd.toISOString());
+    const ballots = await this.db.getBallotsByTime(ballotStart, ballotEnd);
+    await this.db.delBallotsByTime(ballotStart, ballotEnd);
 
     const shuffled = this.shuffle(ballots);
     for (const ballot of shuffled) {
@@ -146,25 +133,17 @@ class Manager {
       );
     }
 
-    const user = await this.client
-      .from("USERS")
-      .select("id")
-      .eq("telegram_id", telegramId)
-      .single();
-
-    if (user.error) {
-      throw new Error(user.error.message);
+    const isUserRegistered = await this.db.isRegistered(telegramId);
+    if (!isUserRegistered) {
+      throw new Error("User is not registered");
     }
 
-    const { error: bookingError } = await this.client.from("SLOTS").insert({
-      booked_by: user.data.id,
-      time_begin: startTime.toISOString(),
-      time_end: endTime.toISOString(),
+    const user = await this.db.getUserId(telegramId);
+    await this.db.bookSlot({
+      userTelegramId: telegramId,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
     });
-
-    if (bookingError) {
-      throw new Error(bookingError.message);
-    }
   }
 
   public async ballot(
@@ -250,26 +229,12 @@ class Manager {
       );
     }
 
-    const user = await this.client
-      .from("USERS")
-      .select("id")
-      .eq("telegram_id", telegramId)
-      .single();
-
-    if (user.error) {
-      throw new Error(user.error.message);
+    const isUserRegistered = await this.db.isRegistered(telegramId);
+    if (!isUserRegistered) {
+      throw new Error("User is not registered");
     }
 
-    const { error: ballotError } = await this.client.from("BALLOTS").insert({
-      telegram_id: telegramId,
-      user_id: user.data.id,
-      time_begin: startTime.toISOString(),
-      time_end: endTime.toISOString(),
-    });
-
-    if (ballotError) {
-      throw new Error(ballotError.message);
-    }
+    await this.db.addBallot(telegramId, startTime, endTime);
   }
 
   public async book(booking: {
@@ -285,25 +250,12 @@ class Manager {
       throw new Error("Booking can only be done for the current week!");
     }
 
-    const user = await this.client
-      .from("USERS")
-      .select("id")
-      .eq("telegram_id", booking.userTelegramId)
-      .single();
-
-    if (user.error) {
-      throw new Error(user.error.message);
+    const isUserRegistered = await this.db.isRegistered(booking.userTelegramId);
+    if (!isUserRegistered) {
+      throw new Error("User is not registered");
     }
 
-    const { error: bookingError } = await this.client.from("SLOTS").insert({
-      booked_by: user.data.id,
-      time_begin: booking.startTime,
-      time_end: booking.endTime,
-    });
-
-    if (bookingError) {
-      throw new Error(bookingError.message);
-    }
+    await this.db.bookSlot(booking);
   }
 
   private shuffle<T>(array: T[]): T[] {

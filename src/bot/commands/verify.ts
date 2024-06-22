@@ -16,6 +16,11 @@ export default function verifyCommand(database: Database) {
       return;
     }
 
+    if (!ctx.message || !("text" in ctx.message)) {
+      ctx.reply("Please provide a verification code. Usage: /verify {CODE}");
+      return;
+    }
+
     const verificationCode = ctx.message.text.split(" ")[1];
     if (!verificationCode) {
       ctx.reply("Please provide a verification code. Usage: /verify {CODE}");

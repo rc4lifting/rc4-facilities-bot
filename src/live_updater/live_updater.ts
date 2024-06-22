@@ -1,3 +1,4 @@
+// live_updater/live_updater.ts
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { JWT } from "google-auth-library";
 import { Database, Slot, Ballot } from "../database/";
@@ -6,26 +7,22 @@ import config from "../config/default";
 
 export class LiveUpdater {
   private doc!: GoogleSpreadsheet;
-  private db!: Database;
+  private readonly db: Database;
   private readonly googleServiceAccountEmail: string;
   private readonly googleServiceAccountPrivateKey: string;
   private readonly googleSpreadsheetId: string;
-  private readonly supabaseUrl: string;
-  private readonly supabaseKey: string;
   private readonly serviceAccountAuth: JWT;
 
   constructor(
     googleServiceAccountEmail: string,
     googleServiceAccountPrivateKey: string,
     googleSpreadsheetId: string,
-    supabaseUrl: string,
-    supabaseKey: string
+    db: Database
   ) {
     this.googleServiceAccountEmail = googleServiceAccountEmail;
     this.googleServiceAccountPrivateKey = googleServiceAccountPrivateKey;
     this.googleSpreadsheetId = googleSpreadsheetId;
-    this.supabaseKey = supabaseKey;
-    this.supabaseUrl = supabaseUrl;
+    this.db = db;
 
     // Initialize the JWT for authentication
     this.serviceAccountAuth = new JWT({
@@ -44,11 +41,6 @@ export class LiveUpdater {
   async init() {
     await this.serviceAccountAuth.authorize();
     await this.doc.loadInfo();
-    this.db = await Database.build({
-      supabaseUrl: this.supabaseUrl,
-      supabaseKey: this.supabaseKey,
-    });
-
     console.log("loaded!");
   }
 

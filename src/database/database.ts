@@ -2,11 +2,12 @@ import { SupabaseClient, createClient } from "@supabase/supabase-js";
 import { User, UserInsert, UserUpdate } from "./models/user";
 import { Slot, SlotInsert, SlotUpdate } from "./models/slot";
 import { Ballot, BallotInsert, BallotUpdate } from "./models/ballot";
+import Logger from "../logger/logger"; // Import the logger
 
 export class Database {
   private readonly client: SupabaseClient<Database>;
 
-  private constructor(client: SupabaseClient<Database>) {
+  public constructor(client: SupabaseClient<Database>) {
     this.client = client;
   }
 
@@ -15,8 +16,39 @@ export class Database {
     supabaseKey: string;
   }): Promise<Database> {
     const { supabaseUrl, supabaseKey } = options;
-    const client = createClient<Database>(supabaseUrl, supabaseKey);
-    return new Database(client);
+    try {
+      Logger.info("Creating Supabase client...");
+      const client = createClient<Database>(supabaseUrl, supabaseKey);
+      if (!client) {
+        throw new Error("Failed to create Supabase client.");
+      }
+      Logger.info("Supabase client created successfully.");
+      return new Database(client);
+    } catch (error) {
+      if (error instanceof Error) {
+        Logger.error(`Error creating Supabase client: ${error.message}`);
+        throw new Error(`Error creating Supabase client: ${error.message}`);
+      } else {
+        Logger.error("Unknown error occurred while creating Supabase client.");
+        throw new Error(
+          "Unknown error occurred while creating Supabase client."
+        );
+      }
+    }
+  }
+
+  public async userExists(telegramId: string): Promise<boolean> {
+    const { data, error } = await this.client
+      .from("USERS")
+      .select("telegram_id")
+      .eq("telegram_id", telegramId)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      throw new Error(error.message);
+    }
+
+    return !!data;
   }
 
   public async isUser(telegramId: string): Promise<boolean> {
@@ -51,7 +83,7 @@ export class Database {
     }
   }
 
-  private async getUserId(telegramId: string): Promise<number> {
+  public async getUserId(telegramId: string): Promise<number> {
     const { data, error } = await this.client
       .from("USERS")
       .select("id")
@@ -65,7 +97,7 @@ export class Database {
     return data.id;
   }
 
-  private validateTime(startTime: string, endTime: string): boolean {
+  public validateTime(startTime: string, endTime: string): boolean {
     return new Date(startTime) < new Date(endTime);
   }
 

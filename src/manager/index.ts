@@ -1,1 +1,2 @@
-export { Manager } from "./manager";
+// manager/index.ts
+export { default as Manager } from "./manager";
