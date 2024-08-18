@@ -1,7 +1,4 @@
-# **NUS Orbital 2023**
-
 # RC4 Facility Booking Telegram Bot (RC4 CSC Sports Committee 2024)
-
 
 # Table of Contents
 
@@ -9,11 +6,6 @@
 - [Usage](#usage)
 
 # Requirements
-
-Dplatform is tested using the following versions:
-
-- Node: v16.20.0
-- Yarn: v1.22.19
 
 # Usage
 
